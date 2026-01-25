@@ -47,13 +47,22 @@ The application demonstrates the use of modern web technologies including Next.j
 - Silent token refresh (once daily)
 
 ### 🗺️ Route Planning
-- AI-powered route generation using LLM
+- **AI-powered route generation** using LLM (Google Gemini 2.5 Flash)
+  - Advanced prompt engineering with geospatial algorithms
+  - Brownian Bridge simulation for natural path curves
+  - Catmull-Rom Spline concepts for smooth trajectories
+  - Anti-linearity constraints to prevent straight-line artifacts
 - Support for two trip types:
   - **Bicycle:** 30-70 km continuous routes (city to city)
   - **Trek:** 5-10 km circular routes
-- Interactive Leaflet maps with realistic path rendering
+- Interactive Leaflet maps with path visualization
+  - **15-20 waypoints per route** for smooth curves
+  - Routes follow natural, curved patterns
+  - Note: Routes may not perfectly align with visible roads (LLM limitation)
 - 3-day weather forecast for route locations
-- AI-generated or real images representing the destination
+- Country-typical images representing the destination
+  - Unsplash API integration for high-quality images (optional)
+  - Lorem Picsum fallback for placeholder images
 
 ### 📚 Route History
 - Save approved routes to database
@@ -172,11 +181,13 @@ MONGODB_URI=mongodb://localhost:27017/hiking-routes
 GEMINI_API_KEY=your-gemini-api-key
 WEATHER_API_KEY=your-openweathermap-api-key
 JWT_SECRET=your-super-secret-jwt-key
+UNSPLASH_ACCESS_KEY=your-unsplash-key-optional  # Optional for better images
 ```
 
 **Get API Keys:**
 - **Gemini:** https://makersuite.google.com/app/apikey (Free)
 - **Weather:** https://openweathermap.org/api (Free tier available)
+- **Unsplash (Optional):** https://unsplash.com/developers (For better images)
 
 ---
 

@@ -36,6 +36,7 @@ export type TripType = 'bicycle' | 'trek';
 export interface Coordinate {
   lat: number;
   lng: number;
+  name?: string; // Optional name for the location
 }
 
 /**

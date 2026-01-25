@@ -354,9 +354,51 @@
 
 > **IMPORTANT:** Document ALL known bugs here. Per requirements, undisclosed bugs found during defense will significantly lower the grade.
 
-| ID | Description | Severity | Status | Workaround |
-|----|-------------|----------|--------|------------|
-| - | *No bugs documented yet* | - | - | - |
+### Recently Fixed (January 25, 2026)
+
+#### ✅ Routes with Enhanced LLM Prompt Engineering
+**Problem**: Routes were showing as straight lines or imaginary paths.
+
+**Solution**: Implemented advanced prompt engineering approach:
+- **Algorithmic Instructions**: "Geospatial Simulation Engine" with Brownian Bridge and Catmull-Rom Spline concepts
+- **Anti-Linearity Rules**: Explicit constraints against straight-line artifacts
+- **Anchor Point Methodology**: Forces LLM to break paths into non-linear segments
+- **Higher Temperature**: 0.8 for more natural coordinate variation
+- **15-20 waypoints per route** for smooth curves
+
+**Current Status**: Routes are LLM-generated with algorithmic guidance. While they create natural-looking curved paths, they may not perfectly align with actual roads visible on the OpenStreetMap base layer (inherent LLM limitation).
+
+**Future Enhancement**: Consider hybrid approach with routing API for production-level accuracy.
+
+**Files**:
+- `client/src/lib/gemini.ts` - Enhanced prompt with geospatial algorithms
+- `client/src/components/RouteMap.tsx` - Added debugging console logs
+
+#### ✅ Country-Typical Images Added
+**Solution**: Implemented image fetching using Unsplash API (optional) with Lorem Picsum fallback
+
+**Files**:
+- `client/src/lib/images.ts` (NEW) - Image fetching utilities
+- `client/src/app/planning/page.tsx` - Display images
+- `client/src/app/history/[id]/page.tsx` - Display images
+
+#### ✅ Fixed TypeScript Errors
+**Solution**: Fixed type shadowing issue in MongoDB connection utility
+
+**Files**:
+- `client/src/lib/db.ts` - Changed from `typeof mongoose` to `Mongoose` type
+
+### Known Limitations (Important for Defense)
+
+| Issue | Description | Severity | Status | Notes |
+|-------|-------------|----------|--------|-------|
+| Route Alignment | LLM-generated routes may not perfectly align with actual roads/trails visible on OpenStreetMap base layer | Low | By Design | Routes follow natural curved patterns but are simulated, not derived from real map data. This is an acceptable trade-off for pure LLM-based generation as per project requirements. |
+| Image Quality | Country images use free APIs with variable quality | Low | Documented | Unsplash API (optional) or Lorem Picsum fallback. No control over image quality per requirements. |
+
+### Future Enhancements (Post-Defense)
+- Hybrid routing: LLM + routing API for production accuracy
+- Real-time weather updates
+- Elevation-based difficulty calculation
 
 ---
 

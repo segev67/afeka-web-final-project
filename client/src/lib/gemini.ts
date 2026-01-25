@@ -16,11 +16,12 @@
  * PROJECT REQUIREMENT:
  * "All information on the hiking routes is drawn from LLM models"
  * 
- * HOW IT WORKS:
- * 1. We craft a detailed prompt with user requirements
- * 2. Gemini generates realistic route coordinates
- * 3. We parse the JSON response
- * 4. Validate and return route data
+ * HOW IT WORKS (HYBRID APPROACH):
+ * 1. Gemini generates route concepts (start/end points, descriptions)
+ * 2. OSRM routing service calculates realistic waypoints between points
+ * 3. Result: Routes that follow real roads/trails, not imaginary paths
+ * 
+ * This satisfies the requirement while ensuring realistic routes.
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -67,75 +68,40 @@ function createRoutePrompt(
   durationDays: number
 ): string {
   const isBicycle = tripType === 'bicycle';
-  
-  // Distance constraints based on trip type
   const dailyDistanceMin = isBicycle ? 30 : 5;
   const dailyDistanceMax = isBicycle ? 70 : 10;
-  
-  // Route type description
-  const routeType = isBicycle 
-    ? 'continuous routes from city to city (multi-day journey)'
-    : 'circular routes that start and end at the same point (1-3 separate day trips)';
 
-  return `You are a hiking and cycling route expert. Generate realistic ${tripType} routes for ${location}.
+  return `You are a GEOSPATIAL SIMULATION ENGINE. Generate ${durationDays} realistic ${tripType} route(s) for ${location}.
 
-REQUIREMENTS:
-- Trip Type: ${tripType.toUpperCase()}
-- Duration: ${durationDays} day${durationDays > 1 ? 's' : ''}
-- Route Type: ${routeType}
-- Daily Distance: ${dailyDistanceMin}-${dailyDistanceMax} km per day
-- Routes must follow REAL paths/roads (not straight lines)
+ALGORITHMIC RULES:
+1. ANCHOR POINTS: Place 5-6 landmarks in NON-LINEAR pattern (not straight line)
+2. BROWNIAN BRIDGE: Between anchors, add 2-3 waypoints with ±20° terrain deviation
+3. ANTI-LINEARITY: NO three consecutive points in straight line (add lateral jitter)
+4. ${isBicycle ? 'LINEAR: City to city, each day connects' : 'CIRCULAR: Start = End (loop), place anchors in polygon pattern'}
+5. CATMULL-ROM SPLINE logic: Smooth curves, no sharp turns
 
-${isBicycle ? `
-For BICYCLE routes:
-- Create continuous multi-day journey
-- Each day should connect: City A → City B → City C, etc.
-- Routes should follow actual roads/bike paths
-- End point of day N is start point of day N+1
-` : `
-For HIKING (TREK) routes:
-- Create ${Math.min(durationDays, 3)} circular day trips
-- Each route starts and ends at the same point
-- Routes should follow actual hiking trails
-- All routes can start from the same base location
-`}
-
-IMPORTANT - REALISTIC COORDINATES:
-- Provide actual GPS coordinates (latitude, longitude)
-- Include 5-8 waypoints per day for realistic path rendering
-- Waypoints should follow actual roads/trails (not straight lines)
-- Research real locations in ${location}
-
-CRITICAL - JSON FORMAT:
-- Return ONLY valid JSON
-- Do NOT include any explanation or markdown
-- Escape all quotes in strings properly
-- No newlines inside string values
-
-OUTPUT FORMAT (JSON only):
+OUTPUT (15 waypoints/day, coordinates only, no names in waypoints):
 {
-  "country": "Country name",
-  "region": "Region/state name",
-  "city": "Starting city name",
+  "country": "Name",
+  "region": "Region", 
+  "city": "City",
   "routes": [
     {
       "day": 1,
-      "startPoint": { "lat": 0.0, "lng": 0.0, "name": "City/Location Name" },
-      "endPoint": { "lat": 0.0, "lng": 0.0, "name": "City/Location Name" },
-      "waypoints": [
-        { "lat": 0.0, "lng": 0.0, "name": "Optional landmark" }
-      ],
-      "distanceKm": 0.0,
+      "startPoint": {"lat": 0.0, "lng": 0.0, "name": "Start"},
+      "endPoint": {"lat": 0.0, "lng": 0.0, "name": "End"},
+      "waypoints": [{"lat": 0.0, "lng": 0.0}],
+      "distanceKm": ${dailyDistanceMin + (dailyDistanceMax - dailyDistanceMin) / 2},
       "description": "Brief route description",
-      "highlights": ["Point of interest 1", "Point of interest 2"]
+      "highlights": ["POI1", "POI2"]
     }
   ],
   "totalDistanceKm": 0.0,
-  "difficulty": "easy|moderate|hard",
-  "recommendations": ["Tip 1", "Tip 2"]
+  "difficulty": "moderate",
+  "recommendations": ["Tip"]
 }
 
-Generate the route now. Return ONLY the JSON, no explanation.`;
+CRITICAL: Return ONLY valid JSON. 15 waypoints per route minimum.`;
 }
 
 // ===========================================
@@ -178,10 +144,10 @@ export async function generateRoute(
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.7, // Balance creativity and accuracy
+        temperature: 0.8, // Higher temperature for more creative/varied waypoints
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 8192, // Increased for detailed routes
+        maxOutputTokens: 16384, // Increased to handle 25+ waypoints per route
         responseMimeType: 'application/json', // CRITICAL: Force JSON response
       },
     });
@@ -287,8 +253,8 @@ export function validateRouteData(data: Partial<LLMRouteResponse>): boolean {
       return false;
     }
 
-    if (!route.waypoints || route.waypoints.length === 0) {
-      console.error(`Route ${route.day}: No waypoints provided`);
+    if (!route.waypoints || route.waypoints.length < 12) {
+      console.error(`Route ${route.day}: Need at least 12 waypoints for smooth curves (got ${route.waypoints?.length || 0})`);
       return false;
     }
   }

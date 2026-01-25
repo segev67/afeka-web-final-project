@@ -19,7 +19,7 @@
  * - The cached connection persists across hot reloads
  */
 
-import mongoose from 'mongoose';
+import mongoose, { Mongoose } from 'mongoose';
 
 // MongoDB connection URI from environment variables
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -34,16 +34,17 @@ const MONGODB_URI = process.env.MONGODB_URI;
 declare global {
   // eslint-disable-next-line no-var
   var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-  } | undefined;
+    conn: Mongoose | null;
+    promise: Promise<Mongoose> | null;
+  };
 }
 
 // Initialize cached connection object
-const cached = global.mongoose || { conn: null, promise: null };
+let cached = global.mongoose;
 
 // Store on global for persistence across hot reloads
-if (!global.mongoose) {
+if (!cached) {
+  cached = { conn: null, promise: null };
   global.mongoose = cached;
 }
 
@@ -65,7 +66,7 @@ if (!global.mongoose) {
  * 
  * @returns Promise resolving to mongoose connection
  */
-async function dbConnect(): Promise<typeof mongoose> {
+async function dbConnect(): Promise<Mongoose> {
   // Validate MongoDB URI exists
   if (!MONGODB_URI) {
     throw new Error(
@@ -93,9 +94,9 @@ async function dbConnect(): Promise<typeof mongoose> {
      * DEFENSE: We store this promise so concurrent calls
      * can await the same connection attempt
      */
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
       console.log('✅ MongoDB connected successfully');
-      return mongoose;
+      return mongooseInstance;
     });
   }
 
@@ -108,7 +109,7 @@ async function dbConnect(): Promise<typeof mongoose> {
     throw error;
   }
 
-  return cached.conn;
+  return cached.conn!;
 }
 
 export default dbConnect;

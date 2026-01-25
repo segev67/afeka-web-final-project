@@ -26,6 +26,7 @@ import type { TripType, RoutePlan } from '@/types';
 import { generateRoutePlan, saveRoute } from './actions';
 import { getAccessToken, verifyToken } from '@/lib/auth';
 import { getWeatherIconUrl, formatTemperature } from '@/lib/weather';
+import { getImageAltText } from '@/lib/images';
 
 // Dynamic import for RouteMap (no SSR)
 // DEFENSE: This is critical - Leaflet doesn't work with SSR
@@ -299,6 +300,23 @@ export default function PlanningPage() {
             )}
           </div>
 
+          {/* Country Image */}
+          {generatedRoute && generatedRoute.imageUrl && (
+            <div className="card animate-fade-in">
+              <h2 className="text-xl font-semibold mb-4">Destination Image</h2>
+              <div className="relative w-full h-64 rounded-lg overflow-hidden">
+                <img
+                  src={generatedRoute.imageUrl}
+                  alt={getImageAltText(generatedRoute.country, generatedRoute.city, generatedRoute.tripType)}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                Typical landscape of {generatedRoute.city}, {generatedRoute.country}
+              </p>
+            </div>
+          )}
+
           {/* Route Details */}
           {generatedRoute && (
             <div className="card animate-fade-in">
@@ -327,7 +345,7 @@ export default function PlanningPage() {
                       Distance: {route.distanceKm} km
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {route.startPoint.name} → {route.endPoint.name}
+                      {route.startPoint.name || 'Start'} → {route.endPoint.name || 'End'}
                     </p>
                   </div>
                 ))}

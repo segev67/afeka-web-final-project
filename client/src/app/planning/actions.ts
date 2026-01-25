@@ -32,6 +32,7 @@ import dbConnect from '@/lib/db';
 import Route from '@/lib/models/Route';
 import { generateRoute, validateRouteData } from '@/lib/gemini';
 import { fetchWeatherForRoute } from '@/lib/weather';
+import { fetchCountryImage } from '@/lib/images';
 import type { TripType, RoutePlan, SavedRoute, ApiResponse } from '@/types';
 
 // ===========================================
@@ -94,7 +95,11 @@ export async function generateRoutePlan(
     const startCoordinate = routeData.routes[0].startPoint;
     const weather = await fetchWeatherForRoute([startCoordinate]);
 
-    // Step 4: Create route plan object
+    // Step 4: Fetch country-typical image
+    // PROJECT REQUIREMENT: "route page will be accompanied by one image (typical of the country)"
+    const imageUrl = await fetchCountryImage(routeData.country, routeData.city, tripType);
+
+    // Step 5: Create route plan object
     const routePlan: RoutePlan = {
       userId,
       username, // DEFENSE: Required by Route schema
@@ -107,13 +112,13 @@ export async function generateRoutePlan(
         day: r.day,
         startPoint: r.startPoint,
         endPoint: r.endPoint,
-        waypoints: r.waypoints,
+        waypoints: r.waypoints || [],
         distanceKm: r.distanceKm,
         description: r.description,
       })),
       totalDistanceKm: routeData.totalDistanceKm,
       weather,
-      imageUrl: undefined, // TODO: Add image generation in future
+      imageUrl, // Country-typical image
       approved: false,
     };
 
@@ -175,12 +180,6 @@ export async function saveRoute(
 ): Promise<ApiResponse<SavedRoute>> {
   try {
     console.log(`💾 Saving route for user ${routePlan.userId}...`);
-    console.log('Route plan data:', {
-      hasUserId: !!routePlan.userId,
-      hasUsername: !!routePlan.username,
-      userId: routePlan.userId,
-      username: routePlan.username,
-    });
 
     // Step 1: Connect to database
     await dbConnect();

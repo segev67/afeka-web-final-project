@@ -91,8 +91,13 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
       }
 
       if (!routes || routes.length === 0) {
+        console.log('❌ RouteMap: No routes provided');
         return;
       }
+
+      console.log('🗺️  RouteMap: Rendering', routes.length, 'routes');
+      console.log('First route waypoints count:', routes[0]?.waypoints?.length || 0);
+      console.log('First route data:', JSON.stringify(routes[0], null, 2));
 
       // Initialize map centered on first route's start point
       const firstRoute = routes[0];
@@ -124,15 +129,31 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
 
       // Draw each day's route
       routes.forEach((route, index) => {
+        console.log(`📍 Drawing route ${index + 1}:`, {
+          day: route.day,
+          waypointsCount: route.waypoints?.length || 0,
+          hasStart: !!route.startPoint,
+          hasEnd: !!route.endPoint,
+        });
+
         const color = colors[index % colors.length];
 
         // Create array of coordinates for the polyline
         // DEFENSE: Polyline needs [lat, lng] pairs
+        const waypoints = route.waypoints || [];
         const routeCoords: [number, number][] = [
           [route.startPoint.lat, route.startPoint.lng],
-          ...route.waypoints.map(wp => [wp.lat, wp.lng] as [number, number]),
+          ...waypoints.map(wp => [wp.lat, wp.lng] as [number, number]),
           [route.endPoint.lat, route.endPoint.lng],
         ];
+
+        console.log(`   Total coordinates for polyline: ${routeCoords.length}`);
+        console.log(`   Sample coords:`, routeCoords.slice(0, 3));
+        
+        if (routeCoords.length < 2) {
+          console.error(`❌ Not enough coordinates to draw route ${index + 1}`);
+          return;
+        }
 
         allCoords.push(...routeCoords);
 
@@ -143,6 +164,8 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
           weight: 4,
           opacity: 0.7,
         }).addTo(map);
+        
+        console.log(`   ✅ Polyline added to map with color ${color}`);
 
         // Add popup to polyline
         polyline.bindPopup(`

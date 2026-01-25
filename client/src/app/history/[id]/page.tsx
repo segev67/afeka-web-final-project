@@ -28,6 +28,7 @@ import { cookies } from 'next/headers';
 import dbConnect from '@/lib/db';
 import Route from '@/lib/models/Route';
 import { fetchWeatherForRoute, getWeatherIconUrl, formatTemperature } from '@/lib/weather';
+import { getImageAltText } from '@/lib/images';
 import type { SavedRoute } from '@/types';
 import RouteDetailClient from './RouteDetailClient';
 
@@ -155,6 +156,23 @@ export default async function RouteDetailPage({
               ))}
             </div>
           </div>
+
+          {/* Country Image */}
+          {savedRoute.imageUrl && (
+            <div className="card">
+              <h2 className="text-xl font-semibold mb-4">Destination Image</h2>
+              <div className="relative w-full h-64 rounded-lg overflow-hidden">
+                <img
+                  src={savedRoute.imageUrl}
+                  alt={getImageAltText(savedRoute.country, savedRoute.city, savedRoute.tripType)}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                Typical landscape of {savedRoute.city}, {savedRoute.country}
+              </p>
+            </div>
+          )}
 
           {/* Updated Weather Forecast */}
           {updatedWeather.length > 0 && (
