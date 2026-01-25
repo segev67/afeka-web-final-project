@@ -12,6 +12,11 @@
  * - Server-side rendering (SSR) will fail with Leaflet
  * - Must be a Client Component
  * 
+ * WHY CSS IN LAYOUT?
+ * - Leaflet CSS is imported in app/layout.tsx (global styles)
+ * - Cannot dynamically import CSS files in TypeScript (build error)
+ * - CSS must be loaded before component mounts
+ * 
  * WHY DYNAMIC IMPORT?
  * - Even as Client Component, Next.js tries to pre-render
  * - We use dynamic import with { ssr: false } to skip SSR
@@ -71,10 +76,6 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
     // DEFENSE: This is the key - importing inside useEffect ensures client-side only
     const initMap = async () => {
       const L = (await import('leaflet')).default;
-      
-      // Import Leaflet CSS
-      // DEFENSE: CSS must also be imported dynamically
-      await import('leaflet/dist/leaflet.css');
 
       // Fix marker icon issue in Next.js
       // DEFENSE: Leaflet's default marker icons don't work in Next.js without this fix
