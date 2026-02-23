@@ -39,13 +39,14 @@ interface RouteDetailClientProps {
   routes: DayRoute[];
   routeId: string;
   userId: string;
+  tripType?: 'bicycle' | 'trek';
 }
 
 // ===========================================
 // COMPONENT
 // ===========================================
 
-export default function RouteDetailClient({ routes, routeId, userId }: RouteDetailClientProps) {
+export default function RouteDetailClient({ routes, routeId, userId, tripType }: RouteDetailClientProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -88,7 +89,7 @@ export default function RouteDetailClient({ routes, routeId, userId }: RouteDeta
             🗑️ Delete Route
           </button>
         </div>
-        <RouteMap routes={routes} height="600px" />
+        <RouteMap routes={routes} tripType={tripType} height="600px" />
       </div>
 
       {/* Delete Confirmation Modal */}

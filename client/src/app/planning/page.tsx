@@ -286,7 +286,7 @@ export default function PlanningPage() {
           <div className="card">
             <h2 className="text-xl font-semibold mb-4">Route Map</h2>
             {generatedRoute && generatedRoute.routes.length > 0 ? (
-              <RouteMap routes={generatedRoute.routes} height="500px" />
+              <RouteMap routes={generatedRoute.routes} tripType={generatedRoute.tripType} height="500px" />
             ) : (
               <div className="bg-gray-100 dark:bg-gray-700 rounded-lg h-[500px] flex items-center justify-center">
                 <div className="text-center text-gray-500">

@@ -1,9 +1,9 @@
 /**
  * ===========================================
- * LEAFLET MAP COMPONENT
+ * LEAFLET MAP COMPONENT WITH ROUTING
  * ===========================================
  * 
- * Interactive map component using Leaflet.js
+ * Interactive map component using Leaflet.js with realistic routing
  * 
  * DEFENSE NOTES (CRITICAL FOR DEFENSE):
  * 
@@ -14,6 +14,7 @@
  * 
  * WHY CSS IN LAYOUT?
  * - Leaflet CSS is imported in app/layout.tsx (global styles)
+ * - Leaflet Routing Machine CSS also imported there
  * - Cannot dynamically import CSS files in TypeScript (build error)
  * - CSS must be loaded before component mounts
  * 
@@ -27,9 +28,15 @@
  * - Leaflet tries to access window.document during build
  * - App won't compile
  * 
- * PROJECT REQUIREMENT:
- * "For an example of the ability to display maps and routes
- *  see: https://leafletjs.com/examples/quick-start/"
+ * PROJECT REQUIREMENT (CRITICAL):
+ * "Note that the routes should NOT come out as a straight line from 
+ *  point to point but actually a REALISTIC ROUTE on paths/roads"
+ * 
+ * SOLUTION: Leaflet Routing Machine
+ * - Uses OSRM (Open Source Routing Machine) by default
+ * - Generates realistic routes following actual roads/trails
+ * - Free and open-source routing service
+ * - See: https://leafletjs.com/plugins.html
  */
 
 'use client';
@@ -43,6 +50,7 @@ import type { DayRoute } from '@/types';
 
 interface RouteMapProps {
   routes: DayRoute[];
+  tripType?: 'bicycle' | 'trek'; // Optional trip type for routing profile
   height?: string;
 }
 
@@ -55,16 +63,23 @@ interface RouteMapProps {
  * 
  * Displays hiking/cycling routes on an interactive Leaflet map using landmarks.
  * 
- * NEW APPROACH:
- * - Shows numbered markers at major landmarks
- * - Dotted lines connect landmarks to show general flow
+ * NEW APPROACH WITH REALISTIC ROUTING:
+ * - Shows numbered markers at major landmarks (waypoints)
+ * - Uses Leaflet Routing Machine for realistic routes on roads/trails
+ * - Routes follow actual paths, not straight lines (CRITICAL REQUIREMENT)
  * - Popups display landmark names and descriptions
  * - Color-coded by day
+ * 
+ * ROUTING ENGINE:
+ * - Uses OSRM (Open Source Routing Machine)
+ * - Free public routing service
+ * - Generates routes following actual roads and trails
+ * - Supports foot/bike routing profiles
  * 
  * @param routes - Array of day routes to display
  * @param height - Map container height (default: 500px)
  */
-export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
+export default function RouteMap({ routes, tripType, height = '500px' }: RouteMapProps) {
   const mapRef = useRef<any>(null);
   const mapInstanceRef = useRef<any>(null);
 
@@ -76,6 +91,10 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
     // DEFENSE: This is the key - importing inside useEffect ensures client-side only
     const initMap = async () => {
       const L = (await import('leaflet')).default;
+      
+      // Import Leaflet Routing Machine
+      // DEFENSE: Must be imported dynamically like Leaflet to avoid SSR issues
+      await import('leaflet-routing-machine');
 
       // Fix marker icon issue in Next.js
       // DEFENSE: Leaflet's default marker icons don't work in Next.js without this fix
@@ -211,30 +230,84 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
           console.log(`   ✅ Marker ${landmarkIndex + 1}: ${landmark.name}`);
         });
 
-        // Draw dotted lines between landmarks to show general flow
+        // CRITICAL REQUIREMENT: Use realistic routing instead of straight lines
+        // Draw realistic routes between landmarks using Leaflet Routing Machine
         if (validLandmarks.length >= 2) {
-          const landmarkCoords: [number, number][] = validLandmarks.map(l => 
-            [l.lat!, l.lng!]
-          );
+          const waypoints = validLandmarks.map(l => L.latLng(l.lat!, l.lng!));
 
-          const polyline = L.polyline(landmarkCoords, {
-            color,
-            weight: 2,
-            opacity: 0.5,
-            dashArray: '10, 10', // Dotted line
+          // DEFENSE EXPLANATION:
+          // - L.Routing.control creates a routing control
+          // - waypoints: array of coordinates to route through
+          // - router: uses OSRM (Open Source Routing Machine) for realistic routes
+          // - createMarker: returns false to use our custom numbered markers instead
+          // - lineOptions: customizes the route line appearance
+          // - show: false hides the turn-by-turn directions panel
+          // - addWaypoints: false prevents adding new waypoints by clicking
+          // - routeWhileDragging: false improves performance
+          // - fitSelectedRoutes: false to let us control map bounds manually
+          
+          const routingControl = (L as any).Routing.control({
+            waypoints,
+            router: (L as any).Routing.osrmv1({
+              serviceUrl: 'https://router.project-osrm.org/route/v1',
+              // Use 'foot' profile for hiking, 'bike' for cycling
+              // OSRM profiles: 'car', 'bike', 'foot'
+              profile: tripType?.toLowerCase() === 'bicycle' ? 'bike' : 'foot',
+            }),
+            // Don't show default markers (we have our custom numbered ones)
+            createMarker: function() { return false; },
+            // Style the route line
+            lineOptions: {
+              styles: [{ 
+                color, 
+                weight: 4, 
+                opacity: 0.7 
+              }]
+            },
+            // Hide the turn-by-turn directions panel
+            show: false,
+            // Disable adding waypoints by clicking
+            addWaypoints: false,
+            // Disable route dragging for performance
+            routeWhileDragging: false,
+            // Don't auto-fit bounds (we'll do it manually)
+            fitSelectedRoutes: false,
+            // Collapse the instruction panel
+            collapsible: false,
           }).addTo(map);
 
-          // Add popup to line showing route info
-          polyline.bindPopup(`
-            <div style="min-width: 200px;">
-              <strong style="color: ${color};">Day ${route.day}</strong><br/>
-              <strong>${route.title}</strong><br/>
-              Distance: ${route.totalDistanceKm} km<br/>
-              ${route.description ? `<em>${route.description}</em>` : ''}
-            </div>
-          `);
+          // Add a popup to the route line showing route info
+          routingControl.on('routesfound', function(e: any) {
+            const routes = e.routes;
+            if (routes && routes.length > 0) {
+              const summary = routes[0].summary;
+              const totalDistance = (summary.totalDistance / 1000).toFixed(2); // Convert to km
+              const totalTime = Math.round(summary.totalTime / 60); // Convert to minutes
+              
+              console.log(`   ✅ Realistic route calculated: ${totalDistance} km, ~${totalTime} min`);
+              
+              // Get the line and add popup
+              const line = routingControl.getContainer()?.querySelector('.leaflet-routing-container');
+              if (routes[0].coordinates && routes[0].coordinates.length > 0) {
+                const midPoint = routes[0].coordinates[Math.floor(routes[0].coordinates.length / 2)];
+                const midMarker = L.marker([midPoint.lat, midPoint.lng], {
+                  opacity: 0, // Invisible marker just for popup
+                }).addTo(map);
+                
+                midMarker.bindPopup(`
+                  <div style="min-width: 200px;">
+                    <strong style="color: ${color};">Day ${route.day}</strong><br/>
+                    <strong>${route.title}</strong><br/>
+                    Distance: ${totalDistance} km<br/>
+                    Estimated Time: ${totalTime} min<br/>
+                    ${route.description ? `<em>${route.description}</em>` : ''}
+                  </div>
+                `);
+              }
+            }
+          });
 
-          console.log(`   ✅ Dotted line connecting ${validLandmarks.length} landmarks`);
+          console.log(`   ✅ Realistic route connecting ${validLandmarks.length} landmarks (using OSRM)`);
         }
       });
 
@@ -257,7 +330,7 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [routes]);
+  }, [routes, tripType]);
 
   return (
     <div

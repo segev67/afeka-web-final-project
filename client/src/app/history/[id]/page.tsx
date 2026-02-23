@@ -100,8 +100,10 @@ export default async function RouteDetailPage({
 
   // Fetch updated weather
   // PROJECT REQUIREMENT: "weather forecast for the start of execution tomorrow"
-  const startCoordinate = savedRoute.routes[0].startPoint;
-  const updatedWeather = await fetchWeatherForRoute([startCoordinate]);
+  const firstLandmark = savedRoute.routes[0]?.majorLandmarks?.[0];
+  const updatedWeather = firstLandmark?.lat && firstLandmark?.lng 
+    ? await fetchWeatherForRoute([{ lat: firstLandmark.lat, lng: firstLandmark.lng }])
+    : [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -235,7 +237,12 @@ export default async function RouteDetailPage({
             Pass route data to client component for map rendering
             DEFENSE: Map needs client-side rendering (Leaflet)
           */}
-          <RouteDetailClient routes={savedRoute.routes} routeId={savedRoute._id.toString()} userId={userId} />
+          <RouteDetailClient 
+            routes={savedRoute.routes} 
+            routeId={savedRoute._id.toString()} 
+            userId={userId}
+            tripType={savedRoute.tripType}
+          />
         </div>
       </div>
     </div>
