@@ -19,25 +19,36 @@ import mongoose, { Document, Schema } from 'mongoose';
 // ===========================================
 
 /**
- * Coordinate subdocument interface
+ * Landmark Point subdocument interface
  */
-interface ICoordinate {
-  lat: number;
-  lng: number;
-  name?: string;
+interface ILandmarkPoint {
+  name: string;
+  description?: string;
+  lat?: number;
+  lng?: number;
 }
 
 /**
- * Day Route subdocument interface
+ * Route Segment subdocument interface
+ */
+interface IRouteSegment {
+  from: string;
+  to: string;
+  description: string;
+  distanceKm: number;
+  landmarks?: string[];
+}
+
+/**
+ * Day Route subdocument interface (landmark-based)
  */
 interface IDayRoute {
   day: number;
-  startPoint: ICoordinate;
-  endPoint: ICoordinate;
-  waypoints: ICoordinate[];
-  distanceKm: number;
-  description: string;
-  highlights?: string[];
+  title: string;
+  segments: IRouteSegment[];
+  majorLandmarks: ILandmarkPoint[];
+  totalDistanceKm: number;
+  description?: string;
 }
 
 /**
@@ -80,38 +91,76 @@ export interface IRoute extends Document {
 // ===========================================
 
 /**
- * Coordinate Schema
+ * Landmark Point Schema
  * 
- * DEFENSE: Subdocuments in Mongoose
- * - Defines nested structure within the main document
- * - lat/lng are required for map rendering
+ * DEFENSE: Stores named landmarks with optional GPS coordinates
+ * - name is required (e.g., "Geneva Central Station")
+ * - lat/lng are optional - only needed for map display
  */
-const coordinateSchema = new Schema<ICoordinate>(
+const landmarkPointSchema = new Schema<ILandmarkPoint>(
   {
+    name: {
+      type: String,
+      required: [true, 'Landmark name is required'],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
     lat: {
       type: Number,
-      required: [true, 'Latitude is required'],
       min: -90,
       max: 90,
     },
     lng: {
       type: Number,
-      required: [true, 'Longitude is required'],
       min: -180,
       max: 180,
     },
-    name: {
+  },
+  { _id: false }
+);
+
+/**
+ * Route Segment Schema
+ * 
+ * Represents turn-by-turn directions from one landmark to another.
+ */
+const routeSegmentSchema = new Schema<IRouteSegment>(
+  {
+    from: {
       type: String,
+      required: [true, 'Starting landmark is required'],
       trim: true,
     },
+    to: {
+      type: String,
+      required: [true, 'Destination landmark is required'],
+      trim: true,
+    },
+    description: {
+      type: String,
+      required: [true, 'Segment description is required'],
+      trim: true,
+    },
+    distanceKm: {
+      type: Number,
+      required: [true, 'Segment distance is required'],
+      min: 0,
+    },
+    landmarks: {
+      type: [String],
+      default: [],
+    },
   },
-  { _id: false } // Don't create _id for subdocuments
+  { _id: false }
 );
 
 /**
  * Day Route Schema
  * 
- * Represents a single day's route with start/end points and waypoints.
+ * Represents a single day's route with landmark-based segments.
  */
 const dayRouteSchema = new Schema<IDayRoute>(
   {
@@ -120,31 +169,39 @@ const dayRouteSchema = new Schema<IDayRoute>(
       required: [true, 'Day number is required'],
       min: 1,
     },
-    startPoint: {
-      type: coordinateSchema,
-      required: [true, 'Start point is required'],
+    title: {
+      type: String,
+      required: [true, 'Route title is required'],
+      trim: true,
     },
-    endPoint: {
-      type: coordinateSchema,
-      required: [true, 'End point is required'],
+    segments: {
+      type: [routeSegmentSchema],
+      required: [true, 'Route segments are required'],
+      validate: {
+        validator: function (segments: IRouteSegment[]) {
+          return segments.length >= 1;
+        },
+        message: 'At least one segment is required',
+      },
     },
-    waypoints: {
-      type: [coordinateSchema],
-      default: [],
+    majorLandmarks: {
+      type: [landmarkPointSchema],
+      required: [true, 'Major landmarks are required for map display'],
+      validate: {
+        validator: function (landmarks: ILandmarkPoint[]) {
+          return landmarks.length >= 2;
+        },
+        message: 'At least two major landmarks required for map display',
+      },
     },
-    distanceKm: {
+    totalDistanceKm: {
       type: Number,
-      required: [true, 'Distance is required'],
+      required: [true, 'Total distance is required'],
       min: 0,
     },
     description: {
       type: String,
-      required: [true, 'Description is required'],
       trim: true,
-    },
-    highlights: {
-      type: [String],
-      default: [],
     },
   },
   { _id: false }

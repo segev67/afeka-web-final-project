@@ -48,21 +48,33 @@ The application demonstrates the use of modern web technologies including Next.j
 
 ### 🗺️ Route Planning
 - **AI-powered route generation** using LLM (Google Gemini 2.5 Flash)
-  - Advanced prompt engineering with geospatial algorithms
-  - Brownian Bridge simulation for natural path curves
-  - Catmull-Rom Spline concepts for smooth trajectories
-  - Anti-linearity constraints to prevent straight-line artifacts
+  - Natural language route descriptions
+  - Turn-by-turn narrative directions
+  - Real landmark names, street names, and trail names
+  - Routes designed to be followable by humans
 - Support for two trip types:
   - **Bicycle:** 30-70 km continuous routes (city to city)
   - **Trek:** 5-10 km circular routes
-- Interactive Leaflet maps with path visualization
-  - **15-20 waypoints per route** for smooth curves
-  - Routes follow natural, curved patterns
-  - Note: Routes may not perfectly align with visible roads (LLM limitation)
-- 3-day weather forecast for route locations
+- Interactive Leaflet maps with landmark visualization
+  - **Numbered markers** at major landmarks
+  - Dotted lines showing general route flow
+  - Clickable popups with landmark details
+- 3-day weather forecast for route starting points
 - Country-typical images representing the destination
   - Unsplash API integration for high-quality images (optional)
   - Lorem Picsum fallback for placeholder images
+
+### ☁️ Weather Integration
+- **Real-time 3-day weather forecasts** using OpenWeatherMap API
+- Displays for each planned route:
+  - Temperature (current, high, low)
+  - Weather conditions with icons
+  - Humidity and wind speed
+- **Fresh weather data** when viewing saved routes
+- **Non-blocking design**: App works without weather API key
+- **Caching**: Weather data cached for 1 hour to reduce API calls
+
+📖 **[Weather Setup Guide](client/WEATHER_SETUP.md)** - Complete instructions for configuring weather API
 
 ### 📚 Route History
 - Save approved routes to database
@@ -186,8 +198,11 @@ UNSPLASH_ACCESS_KEY=your-unsplash-key-optional  # Optional for better images
 
 **Get API Keys:**
 - **Gemini:** https://makersuite.google.com/app/apikey (Free)
-- **Weather:** https://openweathermap.org/api (Free tier available)
+- **Weather:** https://openweathermap.org/api (Free tier: 1,000 calls/day)
+  - **📖 [Detailed Weather Setup Guide](client/WEATHER_SETUP.md)** - Step-by-step instructions
 - **Unsplash (Optional):** https://unsplash.com/developers (For better images)
+
+**Note on Weather API**: The weather integration is fully implemented but optional. The app works perfectly without it - weather sections simply won't display. See the [Weather Setup Guide](client/WEATHER_SETUP.md) for detailed configuration instructions.
 
 ---
 

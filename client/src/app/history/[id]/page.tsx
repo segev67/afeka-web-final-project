@@ -141,16 +141,32 @@ export default async function RouteDetailPage({
           {/* Daily Routes */}
           <div className="card">
             <h2 className="text-xl font-semibold mb-4">Daily Routes</h2>
-            <div className="space-y-4">
+            <div className="space-y-6">
               {savedRoute.routes.map((route) => (
-                <div key={route.day} className="border-l-4 border-primary pl-4">
-                  <h3 className="font-semibold">Day {route.day}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{route.description}</p>
-                  <p className="text-sm font-medium mt-2">
-                    📏 {route.distanceKm} km
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {route.startPoint.name || 'Start'} → {route.endPoint.name || 'End'}
+                <div key={route.day} className="border-l-4 border-primary pl-4 pb-4">
+                  <h3 className="font-bold text-lg mb-2">Day {route.day}: {route.title}</h3>
+                  {route.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 italic">
+                      {route.description}
+                    </p>
+                  )}
+                  
+                  {/* Segments Summary */}
+                  <div className="space-y-2 mb-3">
+                    {route.segments.map((segment, idx) => (
+                      <div key={idx} className="text-sm">
+                        <div className="font-medium text-gray-700 dark:text-gray-300">
+                          {idx + 1}. {segment.from} → {segment.to}
+                        </div>
+                        <div className="text-xs text-gray-500 ml-4">
+                          {segment.distanceKm} km
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    📏 Total: {route.totalDistanceKm} km
                   </p>
                 </div>
               ))}

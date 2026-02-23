@@ -55,7 +55,15 @@ const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
  * Prompt engineering is critical for LLM success:
  * - Clear instructions reduce hallucination
  * - Structured JSON output makes parsing reliable
- * - Specific requirements ensure project compliance
+ * - Natural language descriptions make routes human-followable
+ * - Real place names ensure routes are realistic
+ * 
+ * NEW APPROACH:
+ * Instead of generating abstract coordinate waypoints, we ask Gemini to:
+ * - Act as a local guide with real knowledge of the area
+ * - Use actual street names, trail names, and landmarks
+ * - Provide turn-by-turn narrative directions
+ * - Include GPS for major landmarks only (for map display)
  * 
  * @param location - User's desired location
  * @param tripType - 'trek' or 'bicycle'
@@ -71,37 +79,62 @@ function createRoutePrompt(
   const dailyDistanceMin = isBicycle ? 30 : 5;
   const dailyDistanceMax = isBicycle ? 70 : 10;
 
-  return `You are a GEOSPATIAL SIMULATION ENGINE. Generate ${durationDays} realistic ${tripType} route(s) for ${location}.
+  return `You are an EXPERT LOCAL ${isBicycle ? 'CYCLING' : 'HIKING'} GUIDE with intimate knowledge of ${location}.
 
-ALGORITHMIC RULES:
-1. ANCHOR POINTS: Place 5-6 landmarks in NON-LINEAR pattern (not straight line)
-2. BROWNIAN BRIDGE: Between anchors, add 2-3 waypoints with ±20° terrain deviation
-3. ANTI-LINEARITY: NO three consecutive points in straight line (add lateral jitter)
-4. ${isBicycle ? 'LINEAR: City to city, each day connects' : 'CIRCULAR: Start = End (loop), place anchors in polygon pattern'}
-5. CATMULL-ROM SPLINE logic: Smooth curves, no sharp turns
+Your task: Create ${durationDays} realistic ${tripType} route(s) that a human can actually follow.
 
-OUTPUT (15 waypoints/day, coordinates only, no names in waypoints):
+CRITICAL REQUIREMENTS:
+1. Use REAL place names: actual street names, trail names, landmarks, cities
+2. Routes must be FOLLOWABLE using your descriptions alone (no abstract GPS coordinates)
+3. Write natural narrative directions: "Start at X, head north on Y road, after 5km you'll see Z..."
+4. ${isBicycle ? 'LINEAR ROUTES: City to city, each day connects to the next. Use named roads/highways.' : 'CIRCULAR ROUTES: Start and end at same point. Use named trails and return to origin.'}
+5. Distance per day: ${dailyDistanceMin}-${dailyDistanceMax} km
+6. Include 5-7 major landmarks per day with REAL names
+7. Break each day into 3-5 segments (from landmark A to landmark B)
+
+RESEARCH the location first - use real places that exist!
+
+OUTPUT FORMAT (JSON only):
 {
-  "country": "Name",
-  "region": "Region", 
-  "city": "City",
+  "country": "Country name",
+  "region": "Region name",
+  "city": "Starting city",
   "routes": [
     {
       "day": 1,
-      "startPoint": {"lat": 0.0, "lng": 0.0, "name": "Start"},
-      "endPoint": {"lat": 0.0, "lng": 0.0, "name": "End"},
-      "waypoints": [{"lat": 0.0, "lng": 0.0}],
-      "distanceKm": ${dailyDistanceMin + (dailyDistanceMax - dailyDistanceMin) / 2},
-      "description": "Brief route description",
-      "highlights": ["POI1", "POI2"]
+      "title": "Descriptive route title (e.g., 'Geneva to Lausanne via Lake Geneva')",
+      "segments": [
+        {
+          "from": "Starting landmark name",
+          "to": "Destination landmark name",
+          "description": "Natural narrative directions with street/trail names. Include what to look for, landmarks passed, and turns to make.",
+          "distanceKm": 12,
+          "landmarks": ["Notable place 1", "Notable place 2"]
+        }
+      ],
+      "majorLandmarks": [
+        {
+          "name": "Landmark name",
+          "description": "Brief description",
+          "lat": 46.2044,
+          "lng": 6.1432
+        }
+      ],
+      "totalDistanceKm": ${dailyDistanceMin + (dailyDistanceMax - dailyDistanceMin) / 2},
+      "description": "Overall day summary"
     }
   ],
   "totalDistanceKm": 0.0,
-  "difficulty": "moderate",
-  "recommendations": ["Tip"]
+  "difficulty": "easy|moderate|hard",
+  "recommendations": ["Practical tip 1", "Practical tip 2"]
 }
 
-CRITICAL: Return ONLY valid JSON. 15 waypoints per route minimum.`;
+EXAMPLES of good narrative directions:
+- "From Geneva Central Station, follow Rue du Mont-Blanc north toward the lake. After 2km, you'll reach the Jet d'Eau fountain..."
+- "Exit Coppet village center heading east on Route de Lausanne (N1). The path follows the lakeshore with views of the Alps..."
+- "Take the marked trail from Chamonix town square. Follow red trail markers uphill through forest for 3km to Refuge de Plan Joran..."
+
+CRITICAL: Return ONLY valid JSON. Use real places. Make routes followable by humans.`;
 }
 
 // ===========================================
@@ -225,7 +258,7 @@ export async function generateRoute(
 /**
  * Validate Route Data
  * 
- * Ensures the LLM response has all required fields.
+ * Ensures the LLM response has all required fields for landmark-based routes.
  * 
  * @param data - Route data from LLM
  * @returns true if valid, false otherwise
@@ -243,19 +276,50 @@ export function validateRouteData(data: Partial<LLMRouteResponse>): boolean {
 
   // Validate each route
   for (const route of data.routes) {
-    if (!route.startPoint?.lat || !route.startPoint?.lng) {
-      console.error(`Route ${route.day}: Missing start point coordinates`);
+    if (!route.title) {
+      console.error(`Route ${route.day}: Missing title`);
       return false;
     }
 
-    if (!route.endPoint?.lat || !route.endPoint?.lng) {
-      console.error(`Route ${route.day}: Missing end point coordinates`);
+    if (!route.segments || route.segments.length < 2) {
+      console.error(`Route ${route.day}: Need at least 2 segments for a complete route (got ${route.segments?.length || 0})`);
       return false;
     }
 
-    if (!route.waypoints || route.waypoints.length < 12) {
-      console.error(`Route ${route.day}: Need at least 12 waypoints for smooth curves (got ${route.waypoints?.length || 0})`);
+    // Validate segments
+    for (const segment of route.segments) {
+      if (!segment.from || !segment.to) {
+        console.error(`Route ${route.day}: Segment missing 'from' or 'to' landmark`);
+        return false;
+      }
+
+      if (!segment.description || segment.description.length < 20) {
+        console.error(`Route ${route.day}: Segment needs descriptive directions (got: "${segment.description}")`);
+        return false;
+      }
+
+      if (!segment.distanceKm || segment.distanceKm <= 0) {
+        console.error(`Route ${route.day}: Segment missing valid distance`);
+        return false;
+      }
+    }
+
+    if (!route.majorLandmarks || route.majorLandmarks.length < 2) {
+      console.error(`Route ${route.day}: Need at least 2 major landmarks for map display (got ${route.majorLandmarks?.length || 0})`);
       return false;
+    }
+
+    // Validate major landmarks have coordinates
+    for (const landmark of route.majorLandmarks) {
+      if (!landmark.name) {
+        console.error(`Route ${route.day}: Landmark missing name`);
+        return false;
+      }
+      
+      if (landmark.lat === undefined || landmark.lng === undefined) {
+        console.error(`Route ${route.day}: Landmark "${landmark.name}" missing GPS coordinates for map display`);
+        return false;
+      }
     }
   }
 

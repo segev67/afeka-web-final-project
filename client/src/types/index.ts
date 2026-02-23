@@ -40,15 +40,36 @@ export interface Coordinate {
 }
 
 /**
- * A single day's route
+ * Landmark Point - Named location with coordinates
+ */
+export interface LandmarkPoint {
+  name: string; // e.g., "Geneva Central Station"
+  description?: string; // Additional details about the landmark
+  lat?: number; // Optional GPS for map display
+  lng?: number; // Optional GPS for map display
+}
+
+/**
+ * Route Segment - Directions from one landmark to another
+ */
+export interface RouteSegment {
+  from: string; // Starting landmark name
+  to: string; // Destination landmark name
+  description: string; // Turn-by-turn directions (e.g., "Follow Route de Lausanne northeast...")
+  distanceKm: number; // Distance for this segment
+  landmarks?: string[]; // Points of interest along the way
+}
+
+/**
+ * A single day's route with landmark-based segments
  */
 export interface DayRoute {
   day: number;
-  startPoint: Coordinate;
-  endPoint: Coordinate;
-  waypoints: Coordinate[]; // Points along the route
-  distanceKm: number;
-  description: string;
+  title: string; // e.g., "Geneva to Lausanne via Lake Geneva"
+  segments: RouteSegment[]; // Turn-by-turn segments
+  majorLandmarks: LandmarkPoint[]; // Key landmarks with coordinates for map display
+  totalDistanceKm: number;
+  description?: string; // Overall day description
 }
 
 /**
@@ -124,6 +145,7 @@ export interface ApiResponse<T> {
 
 /**
  * Expected response format from LLM for route generation
+ * Now using landmark-based segments instead of coordinate waypoints
  */
 export interface LLMRouteResponse {
   country: string;
@@ -131,24 +153,22 @@ export interface LLMRouteResponse {
   city: string;
   routes: {
     day: number;
-    startPoint: {
-      lat: number;
-      lng: number;
+    title: string; // e.g., "Geneva to Lausanne via Lake Geneva"
+    segments: {
+      from: string; // Starting landmark name
+      to: string; // Destination landmark name
+      description: string; // Turn-by-turn narrative directions
+      distanceKm: number;
+      landmarks?: string[]; // Points of interest along the way
+    }[];
+    majorLandmarks: {
       name: string;
-    };
-    endPoint: {
-      lat: number;
-      lng: number;
-      name: string;
-    };
-    waypoints: Array<{
-      lat: number;
-      lng: number;
-      name?: string;
-    }>;
-    distanceKm: number;
-    description: string;
-    highlights: string[];
+      description?: string;
+      lat?: number; // Optional GPS for map display
+      lng?: number; // Optional GPS for map display
+    }[];
+    totalDistanceKm: number;
+    description?: string;
   }[];
   totalDistanceKm: number;
   difficulty: 'easy' | 'moderate' | 'hard';

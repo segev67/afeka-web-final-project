@@ -336,16 +336,47 @@ export default function PlanningPage() {
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {generatedRoute.routes.map((route) => (
-                  <div key={route.day} className="border-l-4 border-primary pl-4">
-                    <h3 className="font-semibold">Day {route.day}</h3>
-                    <p className="text-sm text-gray-600">{route.description}</p>
-                    <p className="text-sm font-medium mt-1">
-                      Distance: {route.distanceKm} km
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {route.startPoint.name || 'Start'} → {route.endPoint.name || 'End'}
+                  <div key={route.day} className="border-l-4 border-primary pl-4 pb-4">
+                    <h3 className="font-bold text-lg mb-2">Day {route.day}: {route.title}</h3>
+                    {route.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 italic">
+                        {route.description}
+                      </p>
+                    )}
+                    
+                    {/* Route Segments */}
+                    <div className="space-y-3">
+                      {route.segments.map((segment, segmentIndex) => (
+                        <div key={segmentIndex} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            <span className="flex-shrink-0 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">
+                              {segmentIndex + 1}
+                            </span>
+                            <div className="flex-1">
+                              <p className="font-semibold text-sm mb-1">
+                                {segment.from} → {segment.to}
+                              </p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                                {segment.description}
+                              </p>
+                              <div className="flex items-center gap-3 text-xs text-gray-500">
+                                <span className="font-medium">{segment.distanceKm} km</span>
+                                {segment.landmarks && segment.landmarks.length > 0 && (
+                                  <span>
+                                    Landmarks: {segment.landmarks.join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <p className="text-sm font-semibold mt-3 text-gray-700 dark:text-gray-300">
+                      Day {route.day} Total: {route.totalDistanceKm} km
                     </p>
                   </div>
                 ))}

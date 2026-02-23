@@ -91,9 +91,16 @@ export async function generateRoutePlan(
     }
 
     // Step 3: Fetch weather forecast
-    // Get weather for the starting point
-    const startCoordinate = routeData.routes[0].startPoint;
-    const weather = await fetchWeatherForRoute([startCoordinate]);
+    // Get weather for the first major landmark (typically the starting point)
+    const firstLandmark = routeData.routes[0].majorLandmarks.find(l => l.lat && l.lng);
+    
+    let weather: any[] = [];
+    if (firstLandmark?.lat && firstLandmark?.lng) {
+      weather = await fetchWeatherForRoute([{
+        lat: firstLandmark.lat,
+        lng: firstLandmark.lng,
+      }]);
+    }
 
     // Step 4: Fetch country-typical image
     // PROJECT REQUIREMENT: "route page will be accompanied by one image (typical of the country)"
@@ -110,10 +117,10 @@ export async function generateRoutePlan(
       durationDays,
       routes: routeData.routes.map(r => ({
         day: r.day,
-        startPoint: r.startPoint,
-        endPoint: r.endPoint,
-        waypoints: r.waypoints || [],
-        distanceKm: r.distanceKm,
+        title: r.title,
+        segments: r.segments,
+        majorLandmarks: r.majorLandmarks,
+        totalDistanceKm: r.totalDistanceKm,
         description: r.description,
       })),
       totalDistanceKm: routeData.totalDistanceKm,

@@ -53,13 +53,13 @@ interface RouteMapProps {
 /**
  * RouteMap Component
  * 
- * Displays hiking/cycling routes on an interactive Leaflet map.
+ * Displays hiking/cycling routes on an interactive Leaflet map using landmarks.
  * 
- * FEATURES:
- * - Multiple day routes with different colors
- * - Markers for start/end points
- * - Polylines following waypoints
- * - Popups with route information
+ * NEW APPROACH:
+ * - Shows numbered markers at major landmarks
+ * - Dotted lines connect landmarks to show general flow
+ * - Popups display landmark names and descriptions
+ * - Color-coded by day
  * 
  * @param routes - Array of day routes to display
  * @param height - Map container height (default: 500px)
@@ -96,21 +96,28 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
         return;
       }
 
-      console.log('🗺️  RouteMap: Rendering', routes.length, 'routes');
-      console.log('First route waypoints count:', routes[0]?.waypoints?.length || 0);
-      console.log('First route data:', JSON.stringify(routes[0], null, 2));
+      console.log('🗺️  RouteMap: Rendering', routes.length, 'routes with landmarks');
 
-      // Initialize map centered on first route's start point
-      const firstRoute = routes[0];
-      const map = L.map(mapRef.current).setView(
-        [firstRoute.startPoint.lat, firstRoute.startPoint.lng],
-        10
-      );
+      // Find first landmark with coordinates for initial map center
+      let initialLat = 46.2044; // Default: Geneva
+      let initialLng = 6.1432;
+      
+      for (const route of routes) {
+        if (route.majorLandmarks && route.majorLandmarks.length > 0) {
+          const firstLandmark = route.majorLandmarks[0];
+          if (firstLandmark.lat && firstLandmark.lng) {
+            initialLat = firstLandmark.lat;
+            initialLng = firstLandmark.lng;
+            break;
+          }
+        }
+      }
 
+      // Initialize map
+      const map = L.map(mapRef.current).setView([initialLat, initialLng], 10);
       mapInstanceRef.current = map;
 
       // Add OpenStreetMap tile layer
-      // DEFENSE: This is the free map tile provider
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
@@ -129,84 +136,115 @@ export default function RouteMap({ routes, height = '500px' }: RouteMapProps) {
       const allCoords: [number, number][] = [];
 
       // Draw each day's route
-      routes.forEach((route, index) => {
-        console.log(`📍 Drawing route ${index + 1}:`, {
-          day: route.day,
-          waypointsCount: route.waypoints?.length || 0,
-          hasStart: !!route.startPoint,
-          hasEnd: !!route.endPoint,
+      routes.forEach((route, routeIndex) => {
+        console.log(`📍 Drawing route ${routeIndex + 1} (Day ${route.day}):`, {
+          title: route.title,
+          landmarksCount: route.majorLandmarks?.length || 0,
         });
 
-        const color = colors[index % colors.length];
+        const color = colors[routeIndex % colors.length];
+        const landmarks = route.majorLandmarks || [];
 
-        // Create array of coordinates for the polyline
-        // DEFENSE: Polyline needs [lat, lng] pairs
-        const waypoints = route.waypoints || [];
-        const routeCoords: [number, number][] = [
-          [route.startPoint.lat, route.startPoint.lng],
-          ...waypoints.map(wp => [wp.lat, wp.lng] as [number, number]),
-          [route.endPoint.lat, route.endPoint.lng],
-        ];
+        // Filter landmarks that have valid coordinates
+        const validLandmarks = landmarks.filter(l => 
+          l.lat !== undefined && 
+          l.lng !== undefined &&
+          !isNaN(l.lat) && 
+          !isNaN(l.lng)
+        );
 
-        console.log(`   Total coordinates for polyline: ${routeCoords.length}`);
-        console.log(`   Sample coords:`, routeCoords.slice(0, 3));
-        
-        if (routeCoords.length < 2) {
-          console.error(`❌ Not enough coordinates to draw route ${index + 1}`);
+        if (validLandmarks.length === 0) {
+          console.warn(`⚠️  Route ${routeIndex + 1}: No landmarks with valid coordinates`);
           return;
         }
 
-        allCoords.push(...routeCoords);
+        console.log(`   Found ${validLandmarks.length} valid landmarks`);
 
-        // Draw polyline
-        // DEFENSE: Polyline creates the path on the map
-        const polyline = L.polyline(routeCoords, {
-          color,
-          weight: 4,
-          opacity: 0.7,
-        }).addTo(map);
-        
-        console.log(`   ✅ Polyline added to map with color ${color}`);
+        // Create numbered markers for each landmark
+        validLandmarks.forEach((landmark, landmarkIndex) => {
+          const lat = landmark.lat!;
+          const lng = landmark.lng!;
+          
+          allCoords.push([lat, lng]);
 
-        // Add popup to polyline
-        polyline.bindPopup(`
-          <div style="min-width: 200px;">
-            <strong>Day ${route.day}</strong><br/>
-            Distance: ${route.distanceKm} km<br/>
-            ${route.description}
-          </div>
-        `);
+          // Create custom numbered icon
+          const numberIcon = L.divIcon({
+            className: 'custom-number-icon',
+            html: `
+              <div style="
+                background-color: ${color};
+                border: 3px solid white;
+                border-radius: 50%;
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: 16px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              ">
+                ${landmarkIndex + 1}
+              </div>
+            `,
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+          });
 
-        // Add start marker
-        const startMarker = L.marker([route.startPoint.lat, route.startPoint.lng], {
-          title: `Day ${route.day} - Start`,
-        }).addTo(map);
+          // Add marker
+          const marker = L.marker([lat, lng], {
+            icon: numberIcon,
+            title: landmark.name,
+          }).addTo(map);
 
-        startMarker.bindPopup(`
-          <div>
-            <strong>Day ${route.day} - Start</strong><br/>
-            ${route.startPoint.name || 'Starting point'}
-          </div>
-        `);
+          // Add popup with landmark info
+          marker.bindPopup(`
+            <div style="min-width: 200px;">
+              <strong style="color: ${color};">Day ${route.day} - Stop ${landmarkIndex + 1}</strong><br/>
+              <strong>${landmark.name}</strong><br/>
+              ${landmark.description ? `<em>${landmark.description}</em><br/>` : ''}
+              <small>Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}</small>
+            </div>
+          `);
 
-        // Add end marker
-        const endMarker = L.marker([route.endPoint.lat, route.endPoint.lng], {
-          title: `Day ${route.day} - End`,
-        }).addTo(map);
+          console.log(`   ✅ Marker ${landmarkIndex + 1}: ${landmark.name}`);
+        });
 
-        endMarker.bindPopup(`
-          <div>
-            <strong>Day ${route.day} - End</strong><br/>
-            ${route.endPoint.name || 'Ending point'}
-          </div>
-        `);
+        // Draw dotted lines between landmarks to show general flow
+        if (validLandmarks.length >= 2) {
+          const landmarkCoords: [number, number][] = validLandmarks.map(l => 
+            [l.lat!, l.lng!]
+          );
+
+          const polyline = L.polyline(landmarkCoords, {
+            color,
+            weight: 2,
+            opacity: 0.5,
+            dashArray: '10, 10', // Dotted line
+          }).addTo(map);
+
+          // Add popup to line showing route info
+          polyline.bindPopup(`
+            <div style="min-width: 200px;">
+              <strong style="color: ${color};">Day ${route.day}</strong><br/>
+              <strong>${route.title}</strong><br/>
+              Distance: ${route.totalDistanceKm} km<br/>
+              ${route.description ? `<em>${route.description}</em>` : ''}
+            </div>
+          `);
+
+          console.log(`   ✅ Dotted line connecting ${validLandmarks.length} landmarks`);
+        }
       });
 
-      // Fit map to show all routes
-      // DEFENSE: This ensures all routes are visible
+      // Fit map to show all landmarks
       if (allCoords.length > 0) {
         const bounds = L.latLngBounds(allCoords);
         map.fitBounds(bounds, { padding: [50, 50] });
+        console.log(`✅ Map fitted to ${allCoords.length} landmark coordinates`);
+      } else {
+        console.warn('⚠️  No coordinates available for map bounds');
       }
     };
 
