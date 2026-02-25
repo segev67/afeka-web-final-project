@@ -159,16 +159,40 @@ const PORT = process.env.PORT || 4000;
 mongoose
   .connect(process.env.MONGODB_URI as string)
   .then(() => {
+    console.log('\n' + '='.repeat(50));
     console.log('✅ Connected to MongoDB');
+    console.log('   Database:', process.env.MONGODB_URI?.split('@')[1]?.split('?')[0] || 'localhost');
+    console.log('='.repeat(50));
     
     // Start server only after DB connection is established
     app.listen(PORT, () => {
-      console.log(`🚀 Auth server running on port ${PORT}`);
-      console.log(`📍 Health check: http://localhost:${PORT}/health`);
+      console.log('\n' + '🚀'.repeat(25));
+      console.log(`🚀 Auth Server Running`);
+      console.log('='.repeat(50));
+      console.log(`   Port:        ${PORT}`);
+      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`   Health:      http://localhost:${PORT}/health`);
+      console.log(`   API Base:    http://localhost:${PORT}/api`);
+      console.log('='.repeat(50));
+      console.log('📡 Endpoints:');
+      console.log('   POST /api/register  - Register new user');
+      console.log('   POST /api/login     - Login user');
+      console.log('   POST /api/refresh   - Refresh access token');
+      console.log('   GET  /api/verify    - Verify token');
+      console.log('   POST /api/logout    - Logout user');
+      console.log('='.repeat(50));
+      console.log('🔒 Security Features:');
+      console.log('   ✅ bcrypt password hashing with salt');
+      console.log('   ✅ JWT authentication');
+      console.log('   ✅ httpOnly cookies for refresh tokens');
+      console.log('   ✅ CORS protection');
+      console.log('='.repeat(50) + '\n');
+      console.log('👂 Waiting for requests...\n');
     });
   })
   .catch((error) => {
-    console.error('❌ MongoDB connection error:', error.message);
+    console.error('\n❌ MongoDB connection error:', error.message);
+    console.error('   Make sure MongoDB is running and MONGODB_URI is correct in .env');
     process.exit(1); // Exit process with failure code
   });
 

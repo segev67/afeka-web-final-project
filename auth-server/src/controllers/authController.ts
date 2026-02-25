@@ -55,11 +55,17 @@ import {
  * @route POST /api/register
  */
 export const register = async (req: Request, res: Response): Promise<void> => {
+  const startTime = Date.now();
   try {
     const { username, email, password } = req.body;
 
+    console.log('🔐 [REGISTER] Attempting registration...');
+    console.log(`   Username: ${username}`);
+    console.log(`   Email: ${email}`);
+
     // Step 1: Validate required fields
     if (!username || !email || !password) {
+      console.log('❌ [REGISTER] Validation failed: Missing required fields');
       res.status(400).json({
         success: false,
         message: 'Please provide username, email, and password',
@@ -70,9 +76,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     // Step 2: Check if user already exists
     // DEFENSE: Using findOne to check for existing email
     // lowercase() in schema ensures case-insensitive matching
+    console.log('🔍 [REGISTER] Checking if user exists...');
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     
     if (existingUser) {
+      console.log(`⚠️  [REGISTER] User already exists: ${email}`);
       res.status(409).json({ // 409 Conflict
         success: false,
         message: 'User with this email already exists',
@@ -83,13 +91,16 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     // Step 3: Create new user
     // DEFENSE: Password is automatically hashed by the pre-save hook in User model
     // We NEVER store plain text passwords
+    console.log('🔒 [REGISTER] Hashing password with bcrypt...');
     const user = await User.create({
       username,
       email,
       password, // This will be hashed automatically
     });
+    console.log(`✅ [REGISTER] User created with ID: ${user._id}`);
 
     // Step 4: Generate tokens
+    console.log('🎫 [REGISTER] Generating JWT tokens...');
     const tokenPayload: TokenPayload = {
       userId: user._id.toString(),
       username: user.username,
@@ -98,13 +109,18 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
+    console.log('✅ [REGISTER] Tokens generated');
 
     // Step 5: Set refresh token in httpOnly cookie
     // DEFENSE: httpOnly cookie prevents JavaScript access (XSS protection)
     res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+    console.log('🍪 [REGISTER] Refresh token set in httpOnly cookie');
 
     // Step 6: Return success response with access token
     // DEFENSE: Never return the password, even though it's hashed
+    const duration = Date.now() - startTime;
+    console.log(`✅ [REGISTER] Registration successful for ${username} (${duration}ms)`);
+    
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
@@ -118,7 +134,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    const duration = Date.now() - startTime;
+    console.error(`❌ [REGISTER] Registration error (${duration}ms):`, error);
     
     // Handle Mongoose validation errors
     if (error instanceof Error && error.name === 'ValidationError') {
@@ -160,11 +177,16 @@ export const register = async (req: Request, res: Response): Promise<void> => {
  * @route POST /api/login
  */
 export const login = async (req: Request, res: Response): Promise<void> => {
+  const startTime = Date.now();
   try {
     const { email, password } = req.body;
 
+    console.log('🔑 [LOGIN] Attempting login...');
+    console.log(`   Email: ${email}`);
+
     // Step 1: Validate required fields
     if (!email || !password) {
+      console.log('❌ [LOGIN] Validation failed: Missing credentials');
       res.status(400).json({
         success: false,
         message: 'Please provide email and password',
@@ -175,12 +197,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Step 2: Find user by email
     // DEFENSE: We use select('+password') if password was set to select: false
     // Since we didn't, password is included by default
+    console.log('🔍 [LOGIN] Searching for user in database...');
     const user = await User.findOne({ email: email.toLowerCase() });
 
     // Step 3: Check if user exists and password matches
     // DEFENSE: We use the same error message for both cases
     // This prevents attackers from knowing if an email exists in our system
     if (!user) {
+      console.log(`⚠️  [LOGIN] User not found: ${email}`);
       res.status(401).json({
         success: false,
         message: 'Invalid email or password', // Generic message
@@ -188,12 +212,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    console.log(`✅ [LOGIN] User found: ${user.username}`);
+
     // Step 4: Compare password using bcrypt
     // DEFENSE: comparePassword() is a method on the User model
     // It uses bcrypt.compare() which is timing-safe (prevents timing attacks)
+    console.log('🔒 [LOGIN] Verifying password...');
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
+      console.log(`❌ [LOGIN] Invalid password for ${email}`);
       res.status(401).json({
         success: false,
         message: 'Invalid email or password', // Same generic message
@@ -201,7 +229,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    console.log('✅ [LOGIN] Password verified');
+
     // Step 5: Generate tokens
+    console.log('🎫 [LOGIN] Generating JWT tokens...');
     const tokenPayload: TokenPayload = {
       userId: user._id.toString(),
       username: user.username,
@@ -210,11 +241,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
+    console.log('✅ [LOGIN] Tokens generated');
 
     // Step 6: Set refresh token in httpOnly cookie
     res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+    console.log('🍪 [LOGIN] Refresh token set in httpOnly cookie');
 
     // Step 7: Return success response
+    const duration = Date.now() - startTime;
+    console.log(`✅ [LOGIN] Login successful for ${user.username} (${duration}ms)`);
+    
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -228,7 +264,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    const duration = Date.now() - startTime;
+    console.error(`❌ [LOGIN] Login error (${duration}ms):`, error);
     res.status(500).json({
       success: false,
       message: 'An error occurred during login',
@@ -267,12 +304,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
  * @route POST /api/refresh
  */
 export const refreshToken = async (req: Request, res: Response): Promise<void> => {
+  const startTime = Date.now();
   try {
+    console.log('🔄 [REFRESH] Token refresh requested...');
+    
     // Step 1: Get refresh token from cookie
     // DEFENSE: req.cookies is populated by cookie-parser middleware
     const token = req.cookies.refreshToken;
 
     if (!token) {
+      console.log('❌ [REFRESH] No refresh token found in cookies');
       res.status(401).json({
         success: false,
         message: 'Refresh token not found',
@@ -283,13 +324,17 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
     // Step 2: Verify refresh token
     // DEFENSE: This checks signature validity and expiration
+    console.log('🔍 [REFRESH] Verifying refresh token...');
     const decoded = verifyRefreshToken(token);
+    console.log(`✅ [REFRESH] Token valid for user: ${decoded.username}`);
 
     // Step 3: Optionally verify user still exists in database
     // This catches cases where user was deleted but token still valid
+    console.log('🔍 [REFRESH] Checking if user still exists...');
     const user = await User.findById(decoded.userId);
 
     if (!user) {
+      console.log(`❌ [REFRESH] User not found: ${decoded.userId}`);
       res.status(401).json({
         success: false,
         message: 'User not found',
@@ -298,7 +343,10 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    console.log(`✅ [REFRESH] User verified: ${user.username}`);
+
     // Step 4: Generate new tokens
+    console.log('🎫 [REFRESH] Generating new tokens...');
     const tokenPayload: TokenPayload = {
       userId: user._id.toString(),
       username: user.username,
@@ -311,8 +359,13 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     // This is more secure but can cause issues if multiple tabs are open
     const newRefreshToken = generateRefreshToken(tokenPayload);
     res.cookie('refreshToken', newRefreshToken, getRefreshTokenCookieOptions());
+    console.log('✅ [REFRESH] New tokens generated');
+    console.log('🍪 [REFRESH] New refresh token set');
 
     // Step 5: Return new access token
+    const duration = Date.now() - startTime;
+    console.log(`✅ [REFRESH] Silent refresh successful for ${user.username} (${duration}ms)`);
+    
     res.status(200).json({
       success: true,
       message: 'Token refreshed successfully',
@@ -321,10 +374,12 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       },
     });
   } catch (error) {
-    console.error('Token refresh error:', error);
+    const duration = Date.now() - startTime;
+    console.error(`❌ [REFRESH] Token refresh error (${duration}ms):`, error);
     
     // Clear invalid refresh token
     res.clearCookie('refreshToken');
+    console.log('🗑️  [REFRESH] Invalid token cleared from cookies');
     
     res.status(401).json({
       success: false,
@@ -352,6 +407,8 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 export const verifyToken = async (req: Request, res: Response): Promise<void> => {
   // If we reach here, the protect middleware has already verified the token
   // req.user contains the decoded token data
+  console.log(`✅ [VERIFY] Token verified for user: ${req.user?.username}`);
+  
   res.status(200).json({
     success: true,
     message: 'Token is valid',
@@ -376,6 +433,8 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
  * @route POST /api/logout
  */
 export const logout = async (req: Request, res: Response): Promise<void> => {
+  console.log('👋 [LOGOUT] User logging out...');
+  
   // Clear the refresh token cookie
   res.clearCookie('refreshToken', {
     httpOnly: true,
@@ -383,6 +442,9 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     sameSite: 'strict',
     path: '/api/refresh',
   });
+
+  console.log('✅ [LOGOUT] Refresh token cleared');
+  console.log('✅ [LOGOUT] Logout successful');
 
   res.status(200).json({
     success: true,
