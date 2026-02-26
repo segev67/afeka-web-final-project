@@ -19,6 +19,22 @@
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || '';
 
 /**
+ * Generate a consistent hash/seed for location
+ * This ensures the same location always gets the same image
+ */
+function generateLocationSeed(country: string, city?: string, tripType?: string): string {
+  const str = `${country.toLowerCase()}-${city?.toLowerCase() || 'region'}-${tripType || 'nature'}`;
+  // Simple hash function to convert location to a consistent number
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString();
+}
+
+/**
  * Fetch Country-Typical Image
  * 
  * Fetches a representative image for the given location.
@@ -59,11 +75,17 @@ export async function fetchCountryImage(
     }
 
     // Fallback: Use Lorem Picsum with a deterministic seed based on location
-    // This ensures the same location always gets the same image
-    const seed = encodeURIComponent(country + (city || ''));
-    const picsum = `https://picsum.photos/seed/${seed}/1200/600`;
-    console.log('✅ Using fallback image (Lorem Picsum)');
-    return picsum;
+    // The seed is a hash of the location, ensuring:
+    // 1. Same location + trip type = same image (consistency across reloads)
+    // 2. Different locations = different images (variety)
+    // 3. Deterministic and predictable
+    const seed = generateLocationSeed(country, city, tripType);
+    const picsumUrl = `https://picsum.photos/seed/${seed}/1200/600`;
+    
+    console.log('✅ Using location-based image (Lorem Picsum)');
+    console.log(`   Image seed: ${seed} for ${country}${city ? ` - ${city}` : ''}`);
+    
+    return picsumUrl;
 
   } catch (error) {
     console.error('❌ Error fetching image:', error);

@@ -25,7 +25,6 @@ import dynamic from 'next/dynamic';
 import type { TripType, RoutePlan } from '@/types';
 import { generateRoutePlan, saveRoute } from './actions';
 import { getAccessToken, verifyToken } from '@/lib/auth';
-import { getWeatherIconUrl, formatTemperature } from '@/lib/weather';
 import { getImageAltText } from '@/lib/images';
 
 // Dynamic import for RouteMap (no SSR)
@@ -58,6 +57,8 @@ export default function PlanningPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [savedRouteId, setSavedRouteId] = useState<string | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
   
   // Route data
   const [generatedRoute, setGeneratedRoute] = useState<RoutePlan | null>(null);
@@ -128,11 +129,12 @@ export default function PlanningPage() {
       const result = await saveRoute(generatedRoute);
 
       if (result.success) {
-        setSuccessMessage('Route saved successfully! View it in your history.');
-        // Clear generated route after saving
+        setSavedRouteId(result.data?._id || null);
+        setSuccessMessage('Route saved successfully! Redirecting to history...');
+        
+        // Redirect to history page after 2 seconds
         setTimeout(() => {
-          setGeneratedRoute(null);
-          setLocation('');
+          window.location.href = '/history';
         }, 2000);
       } else {
         setError(result.message || 'Failed to save route');
@@ -148,6 +150,21 @@ export default function PlanningPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Saving Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-sm mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="spinner mx-auto mb-4 w-12 h-12" />
+              <h3 className="text-xl font-semibold mb-2">Saving Your Route</h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Please wait while we save your adventure...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -168,14 +185,30 @@ export default function PlanningPage() {
 
             {/* Messages */}
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-600 text-sm">{error}</p>
+              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-lg animate-fade-in">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-red-700 dark:text-red-300 flex-1">{error}</p>
+                </div>
               </div>
             )}
 
             {successMessage && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-green-600 text-sm">{successMessage}</p>
+              <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg animate-fade-in">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-green-700 dark:text-green-300 font-semibold">{successMessage}</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -330,56 +363,108 @@ export default function PlanningPage() {
                 <button
                   onClick={handleApproveRoute}
                   disabled={isSaving}
-                  className="btn btn-primary"
+                  className="btn btn-primary flex items-center gap-2"
                 >
-                  {isSaving ? 'Saving...' : '✓ Approve & Save Route'}
+                  {isSaving ? (
+                    <>
+                      <span className="spinner" />
+                      Saving Route...
+                    </>
+                  ) : (
+                    <>
+                      ✓ Approve & Save Route
+                    </>
+                  )}
                 </button>
               </div>
 
-              <div className="space-y-6">
-                {generatedRoute.routes.map((route) => (
-                  <div key={route.day} className="border-l-4 border-primary pl-4 pb-4">
-                    <h3 className="font-bold text-lg mb-2">Day {route.day}: {route.title}</h3>
-                    {route.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 italic">
-                        {route.description}
-                      </p>
-                    )}
-                    
-                    {/* Route Segments */}
-                    <div className="space-y-3">
-                      {route.segments.map((segment, segmentIndex) => (
-                        <div key={segmentIndex} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                          <div className="flex items-start gap-2">
-                            <span className="flex-shrink-0 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">
-                              {segmentIndex + 1}
-                            </span>
-                            <div className="flex-1">
-                              <p className="font-semibold text-sm mb-1">
-                                {segment.from} → {segment.to}
-                              </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                                {segment.description}
-                              </p>
-                              <div className="flex items-center gap-3 text-xs text-gray-500">
-                                <span className="font-medium">{segment.distanceKm} km</span>
-                                {segment.landmarks && segment.landmarks.length > 0 && (
-                                  <span>
-                                    Landmarks: {segment.landmarks.join(', ')}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+              <div className="space-y-4">
+                {generatedRoute.routes.map((route) => {
+                  const isExpanded = expandedDays.has(route.day);
+                  
+                  const toggleExpand = () => {
+                    const newExpanded = new Set(expandedDays);
+                    if (isExpanded) {
+                      newExpanded.delete(route.day);
+                    } else {
+                      newExpanded.add(route.day);
+                    }
+                    setExpandedDays(newExpanded);
+                  };
+                  
+                  return (
+                    <div key={route.day} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      {/* Summary Header - Always Visible */}
+                      <button
+                        onClick={toggleExpand}
+                        className="w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
+                      >
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg mb-1">
+                            Day {route.day}: {route.title}
+                          </h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                            <span>📏 {route.totalDistanceKm} km</span>
+                            <span>📍 {route.segments.length} segments</span>
+                            <span>⭐ {route.majorLandmarks.length} landmarks</span>
                           </div>
                         </div>
-                      ))}
+                        <svg 
+                          className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {/* Detailed Content - Expandable */}
+                      {isExpanded && (
+                        <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-800/50">
+                          {route.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 italic">
+                              {route.description}
+                            </p>
+                          )}
+                          
+                          {/* Route Segments */}
+                          <div className="space-y-3">
+                            {route.segments.map((segment, segmentIndex) => (
+                              <div key={segmentIndex} className="bg-white dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                                <div className="flex items-start gap-2">
+                                  <span className="flex-shrink-0 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                    {segmentIndex + 1}
+                                  </span>
+                                  <div className="flex-1">
+                                    <p className="font-semibold text-sm mb-1">
+                                      {segment.from} → {segment.to}
+                                    </p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                                      {segment.description}
+                                    </p>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                                      <span className="font-medium">{segment.distanceKm} km</span>
+                                      {segment.landmarks && segment.landmarks.length > 0 && (
+                                        <span>
+                                          Landmarks: {segment.landmarks.join(', ')}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <p className="text-sm font-semibold mt-4 text-gray-700 dark:text-gray-300">
+                            Day {route.day} Total: {route.totalDistanceKm} km
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    
-                    <p className="text-sm font-semibold mt-3 text-gray-700 dark:text-gray-300">
-                      Day {route.day} Total: {route.totalDistanceKm} km
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="mt-4 pt-4 border-t">
@@ -390,32 +475,20 @@ export default function PlanningPage() {
             </div>
           )}
 
-          {/* Weather Forecast */}
-          {generatedRoute && generatedRoute.weather && generatedRoute.weather.length > 0 && (
-            <div className="card animate-fade-in">
-              <h2 className="text-xl font-semibold mb-4">3-Day Weather Forecast</h2>
-              <div className="grid grid-cols-3 gap-4">
-                {generatedRoute.weather.map((day, index) => (
-                  <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                    <div className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">
-                      Day {index + 1}
-                    </div>
-                    <img
-                      src={getWeatherIconUrl(day.icon)}
-                      alt={day.description}
-                      className="w-16 h-16 mx-auto"
-                    />
-                    <div className="text-2xl font-bold my-2">
-                      {formatTemperature(day.temperature)}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                      {day.description}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-2">
-                      H: {formatTemperature(day.temperatureMax)} / L: {formatTemperature(day.temperatureMin)}
-                    </div>
-                  </div>
-                ))}
+          {/* Weather Notice */}
+          {generatedRoute && (
+            <div className="card animate-fade-in bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+              <div className="flex items-start space-x-3">
+                <div className="text-blue-500 text-2xl">ℹ️</div>
+                <div>
+                  <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                    Weather Forecast Available After Saving
+                  </h3>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Once you approve and save this route, you'll be able to view it in your History 
+                    with a <strong>3-day weather forecast</strong> for starting your trip tomorrow.
+                  </p>
+                </div>
               </div>
             </div>
           )}

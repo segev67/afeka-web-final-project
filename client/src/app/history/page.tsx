@@ -153,13 +153,13 @@ export default async function HistoryPage() {
               const savedRoute = route as unknown as SavedRoute;
               
               return (
-                <div key={savedRoute._id.toString()} className="card hover:shadow-lg transition-shadow">
+                <div key={savedRoute._id.toString()} className="card hover:shadow-lg transition-shadow flex flex-col h-full">
                   {/* Route Header */}
                   <div className="mb-4">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white min-h-[3.5rem] line-clamp-2">
                       {savedRoute.city}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 truncate">
                       {savedRoute.region && `${savedRoute.region}, `}{savedRoute.country}
                     </p>
                   </div>
@@ -196,7 +196,7 @@ export default async function HistoryPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-auto">
                     <Link
                       href={`/history/${savedRoute._id}`}
                       className="flex-1 btn btn-primary text-center text-sm py-2"

@@ -246,68 +246,90 @@ export default function RouteMap({ routes, tripType, height = '500px' }: RouteMa
           // - routeWhileDragging: false improves performance
           // - fitSelectedRoutes: false to let us control map bounds manually
           
-          const routingControl = (L as any).Routing.control({
-            waypoints,
-            router: (L as any).Routing.osrmv1({
-              serviceUrl: 'https://router.project-osrm.org/route/v1',
-              // Use 'foot' profile for hiking, 'bike' for cycling
-              // OSRM profiles: 'car', 'bike', 'foot'
-              profile: tripType?.toLowerCase() === 'bicycle' ? 'bike' : 'foot',
-            }),
-            // Don't show default markers (we have our custom numbered ones)
-            createMarker: function() { return false; },
-            // Style the route line
-            lineOptions: {
-              styles: [{ 
-                color, 
-                weight: 4, 
-                opacity: 0.7 
-              }]
-            },
-            // Hide the turn-by-turn directions panel
-            show: false,
-            // Disable adding waypoints by clicking
-            addWaypoints: false,
-            // Disable route dragging for performance
-            routeWhileDragging: false,
-            // Don't auto-fit bounds (we'll do it manually)
-            fitSelectedRoutes: false,
-            // Collapse the instruction panel
-            collapsible: false,
-          }).addTo(map);
+          try {
+            const routingControl = (L as any).Routing.control({
+              waypoints,
+              router: (L as any).Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1',
+                // Use 'foot' profile for hiking, 'bike' for cycling
+                // OSRM profiles: 'car', 'bike', 'foot'
+                profile: tripType?.toLowerCase() === 'bicycle' ? 'bike' : 'foot',
+                // Suppress errors from OSRM router
+                suppressDemoServerWarning: true,
+              }),
+              // CRITICAL: Override default error handler to suppress console errors
+              // The default handler logs to console.error which we don't want
+              errorHandler: function(error: any) {
+                // Silently handle the error - just log to console.log instead of console.error
+                console.log(`   ℹ️  Note: Route line not available for route ${routeIndex + 1} (waypoints visible)`);
+                // Don't call the default error handler which would log console.error
+              },
+              // Don't show default markers (we have our custom numbered ones)
+              createMarker: function() { return false; },
+              // Style the route line
+              lineOptions: {
+                styles: [{ 
+                  color, 
+                  weight: 4, 
+                  opacity: 0.7 
+                }]
+              },
+              // Hide the turn-by-turn directions panel
+              show: false,
+              // Disable adding waypoints by clicking
+              addWaypoints: false,
+              // Disable route dragging for performance
+              routeWhileDragging: false,
+              // Don't auto-fit bounds (we'll do it manually)
+              fitSelectedRoutes: false,
+              // Collapse the instruction panel
+              collapsible: false,
+            }).addTo(map);
 
-          // Add a popup to the route line showing route info
-          routingControl.on('routesfound', function(e: any) {
-            const routes = e.routes;
-            if (routes && routes.length > 0) {
-              const summary = routes[0].summary;
-              const totalDistance = (summary.totalDistance / 1000).toFixed(2); // Convert to km
-              const totalTime = Math.round(summary.totalTime / 60); // Convert to minutes
-              
-              console.log(`   ✅ Realistic route calculated: ${totalDistance} km, ~${totalTime} min`);
-              
-              // Get the line and add popup
-              const line = routingControl.getContainer()?.querySelector('.leaflet-routing-container');
-              if (routes[0].coordinates && routes[0].coordinates.length > 0) {
-                const midPoint = routes[0].coordinates[Math.floor(routes[0].coordinates.length / 2)];
-                const midMarker = L.marker([midPoint.lat, midPoint.lng], {
-                  opacity: 0, // Invisible marker just for popup
-                }).addTo(map);
+            // Add a popup to the route line showing route info
+            routingControl.on('routesfound', function(e: any) {
+              const routes = e.routes;
+              if (routes && routes.length > 0) {
+                const summary = routes[0].summary;
+                const totalDistance = (summary.totalDistance / 1000).toFixed(2); // Convert to km
+                const totalTime = Math.round(summary.totalTime / 60); // Convert to minutes
                 
-                midMarker.bindPopup(`
-                  <div style="min-width: 200px;">
-                    <strong style="color: ${color};">Day ${route.day}</strong><br/>
-                    <strong>${route.title}</strong><br/>
-                    Distance: ${totalDistance} km<br/>
-                    Estimated Time: ${totalTime} min<br/>
-                    ${route.description ? `<em>${route.description}</em>` : ''}
-                  </div>
-                `);
+                console.log(`   ✅ Realistic route calculated: ${totalDistance} km, ~${totalTime} min`);
+                
+                // Get the line and add popup
+                const line = routingControl.getContainer()?.querySelector('.leaflet-routing-container');
+                if (routes[0].coordinates && routes[0].coordinates.length > 0) {
+                  const midPoint = routes[0].coordinates[Math.floor(routes[0].coordinates.length / 2)];
+                  const midMarker = L.marker([midPoint.lat, midPoint.lng], {
+                    opacity: 0, // Invisible marker just for popup
+                  }).addTo(map);
+                  
+                  midMarker.bindPopup(`
+                    <div style="min-width: 200px;">
+                      <strong style="color: ${color};">Day ${route.day}</strong><br/>
+                      <strong>${route.title}</strong><br/>
+                      Distance: ${totalDistance} km<br/>
+                      Estimated Time: ${totalTime} min<br/>
+                      ${route.description ? `<em>${route.description}</em>` : ''}
+                    </div>
+                  `);
+                }
               }
-            }
-          });
+            });
 
-          console.log(`   ✅ Realistic route connecting ${validLandmarks.length} landmarks (using OSRM)`);
+            // Handle routing errors (OSRM service issues, no route found, etc.)
+            // DEFENSE: Gracefully handle routing failures without breaking the map
+            routingControl.on('routingerror', function(e: any) {
+              console.log(`   ℹ️  Note: Route line not available for route ${routeIndex + 1} (waypoints visible)`);
+              // Silently fail - markers are still visible, just no connecting line
+            });
+
+            console.log(`   ✅ Realistic route connecting ${validLandmarks.length} landmarks (using OSRM)`);
+          } catch (error) {
+            // If routing completely fails, just log it and continue
+            // Markers are already on the map, so user can still see waypoints
+            console.log(`   ℹ️  Note: Route line not available for route ${routeIndex + 1} (waypoints visible)`);
+          }
         }
       });
 

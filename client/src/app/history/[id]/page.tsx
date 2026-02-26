@@ -138,43 +138,8 @@ export default async function RouteDetailPage({
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Left Column: Route Details */}
+        {/* Left Column: Overview & Image */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Daily Routes */}
-          <div className="card">
-            <h2 className="text-xl font-semibold mb-4">Daily Routes</h2>
-            <div className="space-y-6">
-              {savedRoute.routes.map((route) => (
-                <div key={route.day} className="border-l-4 border-primary pl-4 pb-4">
-                  <h3 className="font-bold text-lg mb-2">Day {route.day}: {route.title}</h3>
-                  {route.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 italic">
-                      {route.description}
-                    </p>
-                  )}
-                  
-                  {/* Segments Summary */}
-                  <div className="space-y-2 mb-3">
-                    {route.segments.map((segment, idx) => (
-                      <div key={idx} className="text-sm">
-                        <div className="font-medium text-gray-700 dark:text-gray-300">
-                          {idx + 1}. {segment.from} → {segment.to}
-                        </div>
-                        <div className="text-xs text-gray-500 ml-4">
-                          {segment.distanceKm} km
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    📏 Total: {route.totalDistanceKm} km
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Country Image */}
           {savedRoute.imageUrl && (
             <div className="card">
@@ -191,47 +156,9 @@ export default async function RouteDetailPage({
               </p>
             </div>
           )}
-
-          {/* Updated Weather Forecast */}
-          {updatedWeather.length > 0 && (
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Updated Weather</h2>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                  Live Data
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 mb-4">
-                3-day forecast starting tomorrow
-              </p>
-              <div className="space-y-3">
-                {updatedWeather.map((day, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={getWeatherIconUrl(day.icon)}
-                        alt={day.description}
-                        className="w-12 h-12"
-                      />
-                      <div>
-                        <p className="text-sm font-medium">Day {index + 1}</p>
-                        <p className="text-xs text-gray-500 capitalize">{day.description}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold">{formatTemperature(day.temperature)}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatTemperature(day.temperatureMin)}-{formatTemperature(day.temperatureMax)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right Column: Map */}
+        {/* Right Column: Routes, Weather & Map */}
         <div className="lg:col-span-2">
           {/* 
             Pass route data to client component for map rendering
@@ -242,6 +169,7 @@ export default async function RouteDetailPage({
             routeId={savedRoute._id.toString()} 
             userId={userId}
             tripType={savedRoute.tripType}
+            updatedWeather={updatedWeather}
           />
         </div>
       </div>

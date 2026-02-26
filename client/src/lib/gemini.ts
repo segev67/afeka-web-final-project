@@ -286,22 +286,32 @@ export function validateRouteData(data: Partial<LLMRouteResponse>): boolean {
       return false;
     }
 
-    // Validate segments
+    // Validate segments (be lenient - allow some segments to have minor issues)
+    let validSegments = 0;
     for (const segment of route.segments) {
       if (!segment.from || !segment.to) {
-        console.error(`Route ${route.day}: Segment missing 'from' or 'to' landmark`);
-        return false;
+        console.warn(`Route ${route.day}: Segment missing 'from' or 'to' landmark`);
+        continue;
       }
 
       if (!segment.description || segment.description.length < 20) {
-        console.error(`Route ${route.day}: Segment needs descriptive directions (got: "${segment.description}")`);
-        return false;
+        console.warn(`Route ${route.day}: Segment has short description (got: "${segment.description}")`);
+        // Don't fail validation, just warn
       }
 
       if (!segment.distanceKm || segment.distanceKm <= 0) {
-        console.error(`Route ${route.day}: Segment missing valid distance`);
-        return false;
+        console.warn(`Route ${route.day}: Segment missing valid distance`);
+        // Don't fail validation, estimate distance as 0 for now
+        // The route will still be usable with waypoints
       }
+      
+      validSegments++;
+    }
+    
+    // At least half the segments should be valid
+    if (validSegments < route.segments.length / 2) {
+      console.error(`Route ${route.day}: Too many invalid segments (${validSegments}/${route.segments.length} valid)`);
+      return false;
     }
 
     if (!route.majorLandmarks || route.majorLandmarks.length < 2) {

@@ -58,7 +58,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/register"
-              className="btn btn-outline border-white text-white hover:bg-white hover:text-primary text-lg px-8 py-3"
+              className="btn bg-white/10 backdrop-blur-sm border-2 border-white text-white hover:bg-white hover:text-primary text-lg px-8 py-3 shadow-lg transition-all"
             >
               Create Account
             </Link>
