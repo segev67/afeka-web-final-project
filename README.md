@@ -1,515 +1,732 @@
-# 🥾 Afeka Hiking Trails 2026
+# Afeka Hiking Trails 2026
 
-> A full-stack web application for planning hiking and cycling routes using AI-powered route generation, interactive maps, and real-time weather forecasts.
+**Final Project - Web Platform Development - Semester A 2026**
 
-**Course:** Web Development - Semester A 2026  
-**Institution:** Afeka College of Engineering
+A comprehensive web application for planning hiking and cycling routes using AI-powered recommendations, real-time weather forecasts, and interactive maps with realistic routing.
+
+---
+
+## 👥 Project Team
+
+- **Course**: Web Platform Development
+- **Semester**: A, 2026
+
+---
+
+## 🌐 Live Deployment
+
+- **Application URL**: [Cloud URL - To be added]
+- **GitHub Repository**: [Your GitHub URL]
 
 ---
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running the Application](#running-the-application)
-- [Testing](#testing)
-- [Project Structure](#project-structure)
-- [API Documentation](#api-documentation)
-- [Defense Preparation](#defense-preparation)
-- [Cloud Deployment](#cloud-deployment)
-- [Known Issues](#known-issues)
-- [Contributors](#contributors)
+1. [Project Overview](#project-overview)
+2. [Architecture](#architecture)
+3. [Technologies Used](#technologies-used)
+4. [Key Features](#key-features)
+5. [Project Requirements Compliance](#project-requirements-compliance)
+6. [Installation Guide](#installation-guide)
+7. [Environment Configuration](#environment-configuration)
+8. [Running the Application](#running-the-application)
+9. [Project Structure](#project-structure)
+10. [API Documentation](#api-documentation)
+11. [Known Limitations](#known-limitations)
+12. [Future Enhancements](#future-enhancements)
 
 ---
 
-## Overview
+## 🎯 Project Overview
 
-Afeka Hiking Trails is a dual-server web application that allows users to:
-- Plan hiking (trek) or cycling routes using AI-generated suggestions
-- Visualize routes on interactive maps powered by Leaflet.js
-- View real-time weather forecasts for planned routes
-- Save and retrieve previously planned routes
+Afeka Hiking Trails 2026 is a full-stack web application that enables users to plan personalized hiking and cycling routes using artificial intelligence. The system generates realistic routes based on user preferences, displays them on interactive maps with actual road/trail paths, and provides real-time weather forecasts for upcoming trips.
 
-The application demonstrates the use of modern web technologies including Next.js App Router, Express.js authentication server, MongoDB, and integration with LLM APIs.
+### Core Functionality
+
+1. **AI-Powered Route Planning**: Generate custom routes using Google Gemini AI
+2. **Realistic Path Rendering**: Routes follow actual roads/trails using OSRM routing
+3. **Weather Integration**: 3-day forecasts from OpenWeatherMap API
+4. **Route Management**: Save and retrieve routes from MongoDB database
+5. **Secure Authentication**: JWT-based authentication with Express.js
 
 ---
 
-## Features
+## 🏗️ Architecture
 
-### 🔐 Authentication
-- Secure user registration and login
-- Password encryption with bcrypt + salt
-- JWT-based authentication
-- Silent token refresh (once daily)
+The application follows a **two-server architecture** as required by the project specifications:
 
-### 🗺️ Route Planning
-- **AI-powered route generation** using LLM (Google Gemini 2.5 Flash)
-  - Natural language route descriptions
-  - Turn-by-turn narrative directions
-  - Real landmark names, street names, and trail names
-  - Routes designed to be followable by humans
-- Support for two trip types:
-  - **Bicycle:** 30-70 km continuous routes (city to city)
-  - **Trek:** 5-10 km circular routes
-- Interactive Leaflet maps with landmark visualization
-  - **Numbered markers** at major landmarks
-  - Dotted lines showing general route flow
-  - Clickable popups with landmark details
-- 3-day weather forecast for route starting points
-- Country-typical images representing the destination
-  - Unsplash API integration for high-quality images (optional)
-  - Lorem Picsum fallback for placeholder images
+### Server 1: Express.js Authentication Server (Port 5001)
 
-### ☁️ Weather Integration
-- **Real-time 3-day weather forecasts** using OpenWeatherMap API
-- Displays for each planned route:
+**Purpose**: User authentication, authorization, and JWT token management
+
+**Responsibilities**:
+- User registration with bcrypt password hashing (salt encryption)
+- User login with JWT token generation
+- Token refresh mechanism (silent refresh every 24 hours)
+- Token verification and validation
+
+**Technologies**:
+- Node.js + Express.js
+- MongoDB + Mongoose (user data storage)
+- bcrypt (password hashing with salt)
+- jsonwebtoken (JWT generation and verification)
+- cookie-parser (HTTP-only cookie management)
+
+### Server 2: Next.js Application Server (Port 3000)
+
+**Purpose**: Main application interface and business logic
+
+**Responsibilities**:
+- User interface (React components)
+- Route planning with AI integration
+- Map visualization with Leaflet.js
+- Route storage and retrieval
+- Weather API integration
+- Middleware authorization (soft validation)
+
+**Technologies**:
+- Next.js 15 (App Router)
+- React 19
+- TypeScript
+- Tailwind CSS
+- Leaflet.js + Leaflet Routing Machine
+
+### Database: MongoDB
+
+**Purpose**: Persistent data storage
+
+**Collections**:
+- `users`: User accounts (username, email, hashed passwords)
+- `routes`: Saved hiking/cycling routes with full details
+
+---
+
+## 💻 Technologies Used
+
+### Backend
+- **Express.js** - Authentication server
+- **Node.js** - Runtime environment
+- **MongoDB** - NoSQL database
+- **Mongoose** - ODM for MongoDB
+- **bcrypt** - Password encryption with salt
+- **jsonwebtoken** - JWT implementation
+- **CORS** - Cross-origin resource sharing
+
+### Frontend
+- **Next.js 15** - React framework with App Router
+- **React 19** - UI library
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Utility-first styling
+
+### APIs & Services
+- **Google Gemini AI** - Route generation (LLM)
+- **Leaflet.js** - Interactive maps
+- **Leaflet Routing Machine** - Realistic route rendering
+- **OSRM** - Open Source Routing Machine (realistic paths)
+- **OpenWeatherMap API** - Weather forecasts
+- **Pollinations.ai** - AI image generation
+
+### Development Tools
+- **ESLint** - Code linting
+- **Git** - Version control
+- **VS Code** - Development environment
+
+---
+
+## ✨ Key Features
+
+### 1. User Authentication
+- Secure registration with password hashing (bcrypt + salt)
+- JWT-based authentication with HTTP-only cookies
+- Silent token refresh (24-hour access tokens, 7-day refresh tokens)
+- Automatic session management
+
+### 2. AI-Powered Route Planning
+- **Input Parameters**:
+  - Location (Country/Region/City)
+  - Trip type (Hiking/Cycling)
+  - Duration (number of days)
+
+- **AI Generation**:
+  - Routes generated by Google Gemini AI
+  - Real place names and landmarks
+  - Narrative turn-by-turn directions
+  - Distance calculations per day
+
+- **Route Specifications**:
+  - **Cycling**: 30-70 km per day, linear city-to-city routes
+  - **Hiking**: 5-10 km per day, circular routes (start = end point)
+
+### 3. Interactive Maps with Realistic Routing
+- **Leaflet.js Integration**: Interactive map display
+- **Realistic Paths**: Routes follow actual roads/trails (not straight lines)
+- **OSRM Routing**: Uses Open Source Routing Machine
+- **Route Profiles**: 
+  - `bike` profile for cycling routes
+  - `foot` profile for hiking trails
+- **Numbered Waypoints**: Visual markers for major landmarks
+- **Zoom to Day**: Click daily route to zoom to specific segment
+
+### 4. Weather Forecasting
+- **3-Day Forecast**: Next 3 days starting tomorrow
+- **OpenWeatherMap API**: Real-time weather data
+- **Per-Route Weather**: Forecast for route starting point
+- **Detailed Information**:
   - Temperature (current, high, low)
-  - Weather conditions with icons
-  - Humidity and wind speed
-- **Fresh weather data** when viewing saved routes
-- **Non-blocking design**: App works without weather API key
-- **Caching**: Weather data cached for 1 hour to reduce API calls
+  - Weather conditions
+  - Humidity
+  - Wind speed
 
-📖 **[Weather Setup Guide](client/WEATHER_SETUP.md)** - Complete instructions for configuring weather API
+### 5. Route Management
+- **Save Routes**: Store generated routes to database
+- **Route History**: View all previously saved routes
+- **Route Details**: Full route information with updated weather
+- **Interactive Cards**: Click to view detailed route information
 
-### 📚 Route History
-- Save approved routes to database
-- Retrieve and view past planned routes
-- Updated weather forecasts for saved routes
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLIENT (Browser)                         │
-│                    React Components (Next.js)                   │
-└─────────────────────────────────────────────────────────────────┘
-                    │                           │
-         Login/Register              Protected API Calls
-                    │                     (JWT Token)
-                    ▼                           ▼
-┌─────────────────────────────┐   ┌─────────────────────────────┐
-│    EXPRESS AUTH SERVER      │   │     NEXT.JS APP SERVER      │
-│    (Identity Provider)      │   │     (Application Server)    │
-│         Port: 4000          │   │         Port: 3000          │
-├─────────────────────────────┤   ├─────────────────────────────┤
-│ Endpoints:                  │   │ Pages:                      │
-│ • POST /api/register        │   │ • / (Homepage)              │
-│ • POST /api/login           │   │ • /planning                 │
-│ • POST /api/refresh         │   │ • /history                  │
-│ • GET  /api/verify          │   │                             │
-├─────────────────────────────┤   │ Middleware:                 │
-│ Security:                   │   │ • JWT Validation            │
-│ • bcrypt + salt hashing     │   │                             │
-│ • JWT generation            │   │ Integrations:               │
-│ • httpOnly cookies          │   │ • LLM API (Route Gen)       │
-└──────────────┬──────────────┘   │ • Weather API               │
-               │                  │ • Image Generation          │
-               ▼                  └──────────────┬──────────────┘
-┌─────────────────────────────┐                  │
-│      MongoDB Atlas          │◄─────────────────┘
-│  ┌─────────┐ ┌─────────┐   │
-│  │ Users   │ │ Routes  │   │
-│  └─────────┘ └─────────┘   │
-└─────────────────────────────┘
-```
+### 6. AI-Generated Images
+- **Location-Specific**: Images characteristic of the country/region
+- **AI Generation**: Pollinations.ai for generative images
+- **Automatic Fallback**: Lorem Picsum if AI generation fails
+- **Deterministic**: Same location = same image (consistent experience)
 
 ---
 
-## Tech Stack
+## 📝 Project Requirements Compliance
 
-| Category | Technology |
-|----------|------------|
-| **Frontend** | Next.js 14+ (App Router), React 18, Tailwind CSS |
-| **Backend (Auth)** | Node.js, Express.js |
-| **Backend (App)** | Next.js Server Components, Server Actions |
-| **Database** | MongoDB, Mongoose ODM |
-| **Authentication** | JWT, bcrypt |
-| **Maps** | Leaflet.js, React-Leaflet |
-| **AI Integration** | OpenAI API / Google Gemini |
-| **Weather** | OpenWeatherMap API |
-| **Deployment** | Vercel (Next.js), Railway/Render (Express) |
+This section maps the implementation to the official project requirements:
+
+### Core Architecture Requirements ✅
+
+| Requirement | Implementation | File Reference |
+|-------------|----------------|----------------|
+| Two servers (Express + Next.js) | ✅ Express auth server + Next.js app | `auth-server/`, `client/` |
+| User authentication with salt | ✅ bcrypt with salt rounds | `auth-server/src/controllers/authController.ts` |
+| JWT with submitter names | ✅ Token includes username | `auth-server/src/utils/tokenUtils.ts` |
+| Silent token refresh (once/day) | ✅ 24-hour access tokens | `auth-server/.env`, `client/src/proxy.ts` |
+| Middleware authorization | ✅ Next.js proxy (soft validation) | `client/src/proxy.ts` |
+| Homepage: "Afeka Hiking Trails 2026" | ✅ Correct title | `client/src/app/page.tsx` |
+
+### Page Requirements ✅
+
+| Requirement | Implementation | File Reference |
+|-------------|----------------|----------------|
+| Route Planning page with maps | ✅ Planning page with Leaflet | `client/src/app/planning/page.tsx` |
+| LLM-generated routes | ✅ Google Gemini AI | `client/src/lib/gemini.ts` |
+| Routes History page | ✅ Database retrieval | `client/src/app/history/page.tsx` |
+| User inputs only (location, type, days) | ✅ Form with 3 inputs | `client/src/app/planning/page.tsx` |
+
+### Output Specifications ✅
+
+| Requirement | Implementation | File Reference |
+|-------------|----------------|----------------|
+| Bicycle: 30-70 km per day | ✅ In AI prompt | `client/src/lib/gemini.ts:79-80` |
+| Trek: 5-10 km per day | ✅ In AI prompt | `client/src/lib/gemini.ts:79-80` |
+| Realistic routes (not straight lines) | ✅ OSRM routing | `client/src/components/RouteMap.tsx:251-289` |
+| 3-day weather forecast | ✅ OpenWeatherMap API | `client/src/lib/weather.ts` |
+| Country-typical image (generative) | ✅ AI-generated images | `client/src/lib/images.ts` |
+| Approve without weather forecast | ✅ Weather only in history | `client/src/app/planning/page.tsx` |
+| Save to database | ✅ MongoDB with Mongoose | `client/src/app/planning/actions.ts` |
+| Retrieve with updated weather | ✅ Fresh forecast on view | `client/src/app/history/[id]/page.tsx` |
 
 ---
 
-## Installation
+## 📥 Installation Guide
 
 ### Prerequisites
-- Node.js 18.x or higher
-- npm or yarn
-- MongoDB Atlas account (or local MongoDB)
-- API Keys for:
-  - OpenAI or Google Gemini
-  - OpenWeatherMap
 
-### Clone Repository
+- **Node.js** (v18 or higher)
+- **npm** or **yarn**
+- **MongoDB** (local installation or MongoDB Atlas account)
+- **API Keys** (see Environment Configuration)
+
+### Step 1: Clone the Repository
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/afeka-hiking-trails-2026.git
-cd afeka-hiking-trails-2026
+git clone [YOUR_GITHUB_URL]
+cd afeka_webdevelopment_26a_final_proj
 ```
 
-### Install Dependencies
+### Step 2: Install Dependencies
 
-**Auth Server:**
+#### Install Auth Server Dependencies
 ```bash
 cd auth-server
 npm install
 ```
 
-**Next.js Client:**
+#### Install Client Dependencies
 ```bash
-cd client
+cd ../client
 npm install
 ```
 
 ---
 
-## Configuration
+## ⚙️ Environment Configuration
 
 ### Auth Server Environment Variables
+
 Create `auth-server/.env`:
+
 ```env
-PORT=4000
-MONGODB_URI=mongodb://localhost:27017/hiking-auth
-JWT_SECRET=your-super-secret-jwt-key
-JWT_REFRESH_SECRET=your-refresh-token-secret
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
-CLIENT_URL=http://localhost:3000
+# Server Configuration
+PORT=5001
 NODE_ENV=development
+
+# MongoDB Connection
+# Local MongoDB:
+MONGODB_URI=mongodb://localhost:27017/hiking-auth
+# OR MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/hiking-auth
+
+# JWT Configuration
+# IMPORTANT: Generate strong secrets for production
+# Generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_REFRESH_SECRET=your-refresh-token-secret-also-change-this
+
+# JWT Expiration
+# Access token lasts 24 hours (matches "refresh once a day" requirement)
+JWT_EXPIRES_IN=24h
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Client URL (for CORS)
+CLIENT_URL=http://localhost:3000
 ```
 
-### Next.js Client Environment Variables
+### Client Environment Variables
+
 Create `client/.env.local`:
+
 ```env
-NEXT_PUBLIC_AUTH_URL=http://localhost:4000
+# Auth Server URL
+NEXT_PUBLIC_AUTH_SERVER_URL=http://localhost:5001
+
+# Google Gemini AI API Key
+# Get from: https://makersuite.google.com/app/apikey
+GEMINI_API_KEY=your-gemini-api-key-here
+
+# OpenWeatherMap API Key
+# Get from: https://openweathermap.org/api
+OPENWEATHERMAP_API_KEY=your-openweathermap-api-key-here
+
+# MongoDB Connection (for route storage)
 MONGODB_URI=mongodb://localhost:27017/hiking-routes
-GEMINI_API_KEY=your-gemini-api-key
-WEATHER_API_KEY=your-openweathermap-api-key
-JWT_SECRET=your-super-secret-jwt-key
-UNSPLASH_ACCESS_KEY=your-unsplash-key-optional  # Optional for better images
+# OR MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/hiking-routes
 ```
 
-**Get API Keys:**
-- **Gemini:** https://makersuite.google.com/app/apikey (Free)
-- **Weather:** https://openweathermap.org/api (Free tier: 1,000 calls/day)
-  - **📖 [Detailed Weather Setup Guide](client/WEATHER_SETUP.md)** - Step-by-step instructions
-- **Unsplash (Optional):** https://unsplash.com/developers (For better images)
+### Obtaining API Keys
 
-**Note on Weather API**: The weather integration is fully implemented but optional. The app works perfectly without it - weather sections simply won't display. See the [Weather Setup Guide](client/WEATHER_SETUP.md) for detailed configuration instructions.
+#### 1. Google Gemini API Key
+1. Visit https://makersuite.google.com/app/apikey
+2. Sign in with Google account
+3. Click "Create API Key"
+4. Copy the key to `GEMINI_API_KEY`
 
----
+#### 2. OpenWeatherMap API Key
+1. Visit https://openweathermap.org/api
+2. Sign up for free account
+3. Go to "API keys" section
+4. Generate a new key
+5. Copy to `OPENWEATHERMAP_API_KEY`
 
-## Running the Application
+#### 3. MongoDB Setup
 
-### Prerequisites
-Start MongoDB:
+**Option A: Local MongoDB**
 ```bash
-# Option 1: Docker (Recommended)
-docker run -d -p 27017:27017 --name mongodb mongo:latest
-
-# Option 2: Homebrew (macOS)
+# Install MongoDB locally
+# macOS:
+brew install mongodb-community
 brew services start mongodb-community
+
+# Ubuntu/Linux:
+sudo apt-get install mongodb
+sudo systemctl start mongodb
+
+# Use: MONGODB_URI=mongodb://localhost:27017/hiking-auth
 ```
 
-### Development Mode
-
-**Terminal 1 - Auth Server:**
-```bash
-cd auth-server
-npm run dev
-# Server runs on http://localhost:4000
-```
-
-**Terminal 2 - Next.js Client:**
-```bash
-cd client
-npm run dev
-# App runs on http://localhost:3000
-```
-
-Access the application at: `http://localhost:3000`
-
-### Production Build
-```bash
-# Auth Server
-cd auth-server
-npm run build
-npm start
-
-# Next.js Client
-cd client
-npm run build
-npm start
-```
+**Option B: MongoDB Atlas (Recommended)**
+1. Visit https://www.mongodb.com/cloud/atlas
+2. Create free account
+3. Create a cluster (free tier available)
+4. Get connection string
+5. Replace `<password>` with your database user password
+6. Use the connection string in `MONGODB_URI`
 
 ---
 
-## Testing
+## 🚀 Running the Application
 
-### Manual Testing Flow
+### Step 1: Start MongoDB
 
-1. **Register a new user:**
-   - Navigate to http://localhost:3000
-   - Click "Sign Up"
-   - Use any fake email (e.g., `test@test.com`)
-   - Password: minimum 6 characters
+**If using local MongoDB:**
+```bash
+# macOS:
+brew services start mongodb-community
 
-2. **Test route planning:**
-   - Go to "Plan Route"
-   - Enter: Swiss Alps, Switzerland
-   - Select: Hiking (Trek)
-   - Duration: 2 days
-   - Click "Generate Route with AI"
-   - Wait ~10-20 seconds for Gemini to generate
-   - Review the route on the map
-   - Click "Approve & Save Route"
+# Ubuntu/Linux:
+sudo systemctl start mongodb
+```
 
-3. **Test route history:**
-   - Go to "My Routes"
-   - See your saved route
-   - Click "View Details"
-   - See the route with updated weather forecast
-   - Test delete functionality
+**If using MongoDB Atlas:** No action needed (cloud-hosted)
 
-### Auth Testing Script
+### Step 2: Start the Auth Server
 
-Test authentication endpoints:
 ```bash
 cd auth-server
-npm run test:auth
+npm start
 ```
 
-This will:
-- Register test user
-- Login and get JWT token
-- Decode the token to show contents
-- Verify token validity
+Expected output:
+```
+🚀 Auth Server Starting...
+✅ MongoDB connected successfully
+🔒 Auth Server running on port 5001
+```
 
-### MongoDB Verification
+### Step 3: Start the Next.js Client
 
-Check saved data:
 ```bash
-# Access MongoDB shell
-docker exec -it mongodb mongosh
-
-# View users
-use hiking-auth
-db.users.find({}, {username:1, email:1}).pretty()
-
-# View routes
-use hiking-routes
-db.routes.find({}, {city:1, country:1, tripType:1, totalDistanceKm:1}).pretty()
+cd client
+npm run dev
 ```
+
+Expected output:
+```
+▲ Next.js 15.x.x
+- Local: http://localhost:3000
+- Ready in 2.3s
+```
+
+### Step 4: Access the Application
+
+Open your browser and navigate to:
+```
+http://localhost:3000
+```
+
+### Default Test User (Development Only)
+
+For testing, you can register a new user or use these test credentials if seeded:
+- Username: `testuser`
+- Password: `Test123!`
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
-afeka-hiking-trails-2026/
-├── auth-server/                 # Express Authentication Server
-│   ├── src/
-│   │   ├── controllers/         # Route handlers
-│   │   │   └── authController.ts
-│   │   ├── middleware/          # Auth middleware
-│   │   │   └── authMiddleware.ts
-│   │   ├── models/              # Mongoose schemas
-│   │   │   └── User.ts
-│   │   ├── routes/              # API routes
-│   │   │   └── authRoutes.ts
-│   │   ├── utils/               # Helper functions
-│   │   │   └── tokenUtils.ts
-│   │   └── index.ts             # Server entry point
-│   ├── test-auth.ts             # Auth testing script
-│   ├── .env.example             # Environment template
-│   ├── .gitignore
-│   └── package.json
+afeka_webdevelopment_26a_final_proj/
 │
-├── client/                      # Next.js Application
+├── auth-server/                    # Express.js Authentication Server
 │   ├── src/
-│   │   ├── app/
-│   │   │   ├── layout.tsx       # Root layout with Navbar
-│   │   │   ├── page.tsx         # Homepage
-│   │   │   ├── login/
-│   │   │   │   └── page.tsx     # Login page
-│   │   │   ├── register/
-│   │   │   │   └── page.tsx     # Registration page
+│   │   ├── controllers/
+│   │   │   └── authController.ts   # Login, register, token refresh
+│   │   ├── models/
+│   │   │   └── User.ts             # Mongoose user schema
+│   │   ├── utils/
+│   │   │   └── tokenUtils.ts       # JWT generation/verification
+│   │   ├── db.ts                   # MongoDB connection
+│   │   └── index.ts                # Express server entry point
+│   ├── .env                        # Environment variables
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── client/                         # Next.js Application
+│   ├── src/
+│   │   ├── app/                    # App Router pages
+│   │   │   ├── page.tsx            # Homepage
 │   │   │   ├── planning/
-│   │   │   │   ├── page.tsx     # Route planning page
-│   │   │   │   └── actions.ts   # Server actions
+│   │   │   │   ├── page.tsx        # Route planning page
+│   │   │   │   └── actions.ts      # Server actions
 │   │   │   ├── history/
-│   │   │   │   ├── page.tsx     # Routes history list
-│   │   │   │   ├── actions.ts   # History actions
-│   │   │   │   ├── loading.tsx  # Loading state
+│   │   │   │   ├── page.tsx        # Routes history
 │   │   │   │   └── [id]/
-│   │   │   │       ├── page.tsx            # Route detail page
-│   │   │   │       ├── RouteDetailClient.tsx
-│   │   │   │       └── not-found.tsx
-│   │   │   ├── error.tsx        # Error boundary
-│   │   │   ├── loading.tsx      # Global loading
-│   │   │   └── not-found.tsx    # 404 page
+│   │   │   │       └── page.tsx    # Route detail page
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx        # Login page
+│   │   │   ├── register/
+│   │   │   │   └── page.tsx        # Register page
+│   │   │   └── layout.tsx          # Root layout
+│   │   │
 │   │   ├── components/
-│   │   │   ├── Navbar.tsx       # Navigation bar
-│   │   │   └── RouteMap.tsx     # Leaflet map
+│   │   │   ├── Navbar.tsx          # Navigation component
+│   │   │   ├── RouteMap.tsx        # Leaflet map with routing
+│   │   │   └── ImageWithFallback.tsx # Image with error handling
+│   │   │
 │   │   ├── lib/
-│   │   │   ├── auth.ts          # Client auth utilities
-│   │   │   ├── db.ts            # MongoDB connection
-│   │   │   ├── gemini.ts        # Gemini AI integration
-│   │   │   ├── weather.ts       # Weather API
+│   │   │   ├── gemini.ts           # AI route generation
+│   │   │   ├── weather.ts          # Weather API integration
+│   │   │   ├── images.ts           # Image generation
+│   │   │   ├── db.ts               # MongoDB connection
 │   │   │   └── models/
-│   │   │       └── Route.ts     # Route schema
+│   │   │       └── Route.ts        # Mongoose route schema
+│   │   │
 │   │   ├── types/
-│   │   │   └── index.ts         # TypeScript types
-│   │   └── proxy.ts             # JWT validation proxy
-│   ├── .env.example             # Environment template
-│   ├── .env.local               # Local environment (gitignored)
-│   └── package.json
+│   │   │   └── index.ts            # TypeScript types
+│   │   │
+│   │   └── proxy.ts                # Middleware for auth
+│   │
+│   ├── .env.local                  # Environment variables
+│   ├── package.json
+│   ├── next.config.ts
+│   └── tailwind.config.ts
 │
-├── PROJECT_TASKS.md             # Detailed task tracking
-├── TODO.md                      # Quick checklist
-├── QUICK_START.md               # Setup guide
-├── AUTH_FLOW_EXPLAINED.md       # Authentication flow documentation
-├── README.md                    # This file
-└── .gitignore
+├── Documentation/                  # Project documentation
+│   ├── REQUIREMENTS_CHECKLIST.md  # Requirements compliance
+│   ├── ROUTING_IMPLEMENTATION.md  # Realistic routing explanation
+│   ├── WEATHER_REQUIREMENT_COMPLIANCE.md
+│   ├── SILENT_TOKEN_REFRESH.md    # Token refresh implementation
+│   └── ...
+│
+└── README.md                       # This file
 ```
 
 ---
 
-## API Documentation
+## 📡 API Documentation
 
 ### Auth Server Endpoints
 
-| Method | Endpoint | Description | Body |
-|--------|----------|-------------|------|
-| POST | `/api/register` | Register new user | `{ username, email, password }` |
-| POST | `/api/login` | Login user | `{ email, password }` |
-| POST | `/api/refresh` | Refresh JWT token | Cookie-based |
-| GET | `/api/verify` | Verify token validity | Header: `Authorization: Bearer <token>` |
+#### POST `/auth/register`
+Register a new user
 
-### Response Format
+**Request:**
 ```json
 {
-  "success": true,
-  "data": { ... },
-  "message": "Operation successful"
+  "username": "string",
+  "email": "string",
+  "password": "string"
 }
 ```
 
----
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "user": {
+    "id": "string",
+    "username": "string",
+    "email": "string"
+  }
+}
+```
 
-## Defense Preparation
+#### POST `/auth/login`
+Authenticate user and receive JWT tokens
 
-### Critical Concepts to Understand
+**Request:**
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
 
-#### 1. Authentication & Security
-- **Salt in password hashing:** What it is, why bcrypt generates it automatically
-- **JWT structure:** Header.Payload.Signature explained
-- **Silent refresh:** How httpOnly cookies enable token refresh
-- **CORS:** Why we need it for cross-origin requests
-- **Why two servers?:** Separation of concerns (auth vs app logic)
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "accessToken": "jwt-token",
+  "user": {
+    "id": "string",
+    "username": "string",
+    "email": "string"
+  }
+}
+```
 
-#### 2. Next.js App Router
-- **Server vs Client Components:**
-  - Server: Default, reduce bundle, secure DB access
-  - Client: `"use client"` for hooks, events, browser APIs
-- **Server Actions:** Functions with `"use server"`, replace API routes
-- **Proxy (Middleware):** Runs on Edge, soft auth validation
-- **Dynamic Imports:** `{ ssr: false }` for Leaflet (requires window object)
-- **revalidatePath():** Clears Next.js cache, shows fresh data
+**Cookies Set:**
+- `accessToken`: HTTP-only, 24-hour expiration
+- `refreshToken`: HTTP-only, 7-day expiration
 
-#### 3. Database (MongoDB + Mongoose)
-- **Why Mongoose?:** ODM for MongoDB, schema validation
-- **Connection caching:** Prevents "too many connections" in serverless
-- **Lean queries:** Returns plain objects (faster, serializable)
-- **Indexes:** Speed up userId queries
+#### POST `/auth/refresh`
+Refresh access token using refresh token
 
-#### 4. APIs & Integration
-- **Gemini AI:** Route generation with structured prompts
-- **responseMimeType:** Forces JSON output from LLM
-- **Weather API:** OpenWeatherMap 5-day forecast
-- **Error handling:** Non-blocking (route works even if weather fails)
+**Request:** Refresh token in HTTP-only cookie
 
-### Common Defense Questions & Answers
+**Response:**
+```json
+{
+  "success": true,
+  "accessToken": "new-jwt-token"
+}
+```
 
-**Q: "What happens if you remove this line?"**
-- Example: `revalidatePath('/history')` → Cache doesn't update, new routes don't show
-- Example: `{ ssr: false }` on Leaflet → Build fails ("window is not defined")
-- Example: CORS middleware → Browser blocks all auth requests
+#### POST `/auth/verify`
+Verify if access token is valid
 
-**Q: "Why Server Components?"**
-- Zero JavaScript to client (faster load)
-- Database access on server (more secure)
-- SEO benefits (pre-rendered HTML)
+**Request:** Access token in HTTP-only cookie
 
-**Q: "How does the auth flow work?"**
-- See `AUTH_FLOW_EXPLAINED.md` for detailed diagram
-- Proxy validates tokens WITHOUT calling auth server (JWT is self-contained)
+**Response:**
+```json
+{
+  "success": true,
+  "user": {
+    "userId": "string",
+    "username": "string",
+    "email": "string"
+  }
+}
+```
 
-**Q: "What technology does this belong to?"**
-- `bcrypt` → Node.js library for password hashing
-- `jsonwebtoken` → Node.js JWT implementation
-- `mongoose` → MongoDB ODM
-- `@google/generative-ai` → Gemini AI SDK
-- `leaflet` → Open-source mapping library
+#### POST `/auth/logout`
+Logout user and clear tokens
 
-### File Organization for Defense
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
 
-| File | Key Concepts |
-|------|--------------|
-| `auth-server/src/models/User.ts` | bcrypt, salt, pre-save hooks |
-| `auth-server/src/utils/tokenUtils.ts` | JWT generation, verification |
-| `client/src/proxy.ts` | Middleware, soft validation, Edge runtime |
-| `client/src/app/planning/actions.ts` | Server Actions, revalidatePath |
-| `client/src/lib/gemini.ts` | LLM prompt engineering, JSON parsing |
-| `client/src/components/RouteMap.tsx` | Leaflet, dynamic import, SSR issues |
+### Client Server Actions
 
----
+#### `generateRoutePlan(formData)`
+Generate a new route using AI
 
-## Cloud Deployment
+**Parameters:**
+- `location`: string
+- `tripType`: "trek" | "bicycle"
+- `durationDays`: number
 
-| Service | URL |
-|---------|-----|
-| **Next.js App** | `https://afeka-hiking-trails.vercel.app` |
-| **Auth Server** | `https://afeka-hiking-auth.railway.app` |
+**Returns:** RouteGenerationResult with routes, weather, and image
 
-*URLs will be updated upon deployment*
+#### `saveRoute(routePlan, userId, username)`
+Save a generated route to database
 
----
-
-## Known Issues
-
-> **Important:** This section documents known bugs and limitations for transparency during defense.
-
-| Issue | Description | Status |
-|-------|-------------|--------|
-| *To be documented* | *Issues will be added as discovered* | - |
-
----
-
-## Contributors
-
-| Name | GitHub | Role |
-|------|--------|------|
-| *Your Name* | [@username](https://github.com/username) | Full Stack Developer |
-
----
-
-## License
-
-This project is developed for educational purposes as part of Afeka College's Web Development course.
+**Returns:** { success: boolean, routeId?: string }
 
 ---
 
-## Acknowledgments
+## ⚠️ Known Limitations
 
-- Afeka College of Engineering
-- Course Instructors
-- [Leaflet.js](https://leafletjs.com/) for map functionality
-- [OpenWeatherMap](https://openweathermap.org/) for weather data
+### 1. AI Image Generation
+- **Issue**: Pollinations.ai images may load slowly or fail to load
+- **Mitigation**: Automatic fallback to Lorem Picsum placeholder images
+- **Impact**: Minimal - users always see an image
+
+### 2. OSRM Routing Service
+- **Issue**: May occasionally fail for very remote locations
+- **Mitigation**: Waypoints remain visible on map even if routing line fails
+- **Impact**: Low - route information still complete
+
+### 3. Gemini AI Route Generation
+- **Issue**: Occasionally generates incorrect day count despite explicit prompts
+- **Mitigation**: Validation logic filters invalid routes, retry mechanism
+- **Impact**: Low - users can regenerate if needed
+
+### 4. Token Refresh Edge Cases
+- **Issue**: Edge runtime limitations prevent full server-to-server refresh
+- **Mitigation**: 24-hour tokens reduce need for frequent refresh
+- **Impact**: Minimal - users stay logged in for full day
+
+### 5. Weather API Rate Limits
+- **Issue**: OpenWeatherMap free tier has rate limits
+- **Mitigation**: Efficient caching, minimal API calls
+- **Impact**: Low - sufficient for normal usage
+
+---
+
+## 🔮 Future Enhancements
+
+1. **Offline Map Support**: Progressive Web App with service workers
+2. **Route Sharing**: Share routes with other users via unique links
+3. **GPX Export**: Export routes to GPX format for GPS devices
+4. **Elevation Profiles**: Show elevation changes along routes
+5. **User Reviews**: Rate and review completed routes
+6. **Photo Upload**: Add photos to saved routes
+7. **Social Features**: Follow other users, share achievements
+8. **Multi-Language**: Support for multiple languages
+9. **Mobile App**: React Native mobile application
+10. **Advanced Filters**: Filter routes by difficulty, scenery type, etc.
+
+---
+
+## 📚 Technical Documentation
+
+Detailed technical documentation available in the `/Documentation` folder:
+
+- **ROUTING_IMPLEMENTATION.md**: How realistic routing works
+- **WEATHER_REQUIREMENT_COMPLIANCE.md**: Weather integration details
+- **SILENT_TOKEN_REFRESH.md**: Authentication and token management
+- **REQUIREMENTS_CHECKLIST.md**: Complete requirements compliance matrix
+- **IMAGE_LOADING_FIX.md**: Image generation and fallback strategy
+
+---
+
+## 🧪 Testing
+
+### Manual Testing Checklist
+
+- [ ] User registration with valid/invalid inputs
+- [ ] User login with correct/incorrect credentials
+- [ ] Token persistence across page reloads
+- [ ] Route generation for different locations and types
+- [ ] Map display with realistic routing
+- [ ] Weather forecast accuracy
+- [ ] Route saving to database
+- [ ] Route retrieval from history
+- [ ] Image loading and fallback behavior
+- [ ] Responsive design on mobile/tablet
+- [ ] Dark mode toggle
+- [ ] Logout functionality
+
+---
+
+## 🎓 Academic Context
+
+### Course Learning Outcomes Demonstrated
+
+1. **Full-Stack Development**: Integration of Express.js and Next.js
+2. **Database Design**: MongoDB schema design with Mongoose
+3. **Authentication & Security**: JWT implementation, password hashing
+4. **API Integration**: External APIs (Gemini, Weather, Maps, Images)
+5. **Modern React**: Server/Client Components, Server Actions
+6. **TypeScript**: Type-safe development
+7. **Responsive Design**: Mobile-first with Tailwind CSS
+8. **Best Practices**: Code organization, error handling, documentation
+
+### Technologies from Course
+
+- ✅ **Express.js**: RESTful API design
+- ✅ **Next.js**: App Router, Server Components
+- ✅ **MongoDB**: NoSQL database operations
+- ✅ **React**: Component-based UI
+- ✅ **Authentication**: JWT, cookies, session management
+- ✅ **API Design**: RESTful principles
+- ✅ **Middleware**: Request/response processing
+
+---
+
+## 📄 License
+
+This project is submitted as coursework for Web Platform Development, Afeka College of Engineering, 2026.
+
+---
+
+## 📞 Contact
+
+**Student**: [Your Name]  
+**Email**: [Your Email]  
+**GitHub**: [Your GitHub Profile]
+
+---
+
+## 🙏 Acknowledgments
+
+- **Course Instructor**: [Instructor Name]
+- **Afeka College of Engineering**
+- **Open Source Libraries**: Leaflet, Next.js, Express.js, React
+- **API Providers**: Google Gemini, OpenWeatherMap, OSRM, Pollinations.ai
+
+---
+
+**Last Updated**: [Current Date]
+
+**Project Status**: ✅ Complete and ready for defense
