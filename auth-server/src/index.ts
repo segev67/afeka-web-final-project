@@ -100,9 +100,9 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', server: 'auth-server' });
 });
 
-// Mount authentication routes at /api prefix
-// All auth endpoints: /api/register, /api/login, /api/refresh, /api/verify
-app.use('/api', authRoutes);
+// Mount authentication routes at /auth prefix
+// All auth endpoints: /auth/register, /auth/login, /auth/refresh, /auth/verify, /auth/logout
+app.use('/auth', authRoutes);
 
 // ===========================================
 // ERROR HANDLING MIDDLEWARE

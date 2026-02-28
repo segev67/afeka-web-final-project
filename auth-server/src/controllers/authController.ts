@@ -52,7 +52,7 @@ import {
  * - Refresh token stored in httpOnly cookie (prevents XSS)
  * - Access token short-lived (15 min)
  * 
- * @route POST /api/register
+ * @route POST /auth/register
  */
 export const register = async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
