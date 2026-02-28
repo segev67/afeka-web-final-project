@@ -27,7 +27,10 @@ import authRoutes from './routes/authRoutes';
 
 // Load environment variables from .env file
 // DEFENSE: dotenv.config() reads .env file and adds variables to process.env
-dotenv.config();
+// Only load .env in development - Vercel provides env vars directly
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 // Create Express application instance
 const app: Application = express();

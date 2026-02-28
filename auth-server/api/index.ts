@@ -5,6 +5,7 @@
  * Example: /auth/register → Express app → /auth/register handler
  */
 
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import mongoose from 'mongoose';
 import { app } from '../src/index';
 
@@ -18,7 +19,11 @@ async function connectToDatabase() {
   }
 
   try {
-    await mongoose.connect(process.env.MONGODB_URI as string);
+    const MONGODB_URI = process.env.MONGODB_URI;
+    if (!MONGODB_URI) {
+      throw new Error('MONGODB_URI is not defined in environment variables');
+    }
+    await mongoose.connect(MONGODB_URI);
     isConnected = true;
     console.log('✅ Connected to MongoDB (Vercel)');
   } catch (error: any) {
@@ -28,15 +33,33 @@ async function connectToDatabase() {
 }
 
 // Vercel serverless handler
-export default async function handler(req: any, res: any) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    console.log(`📥 ${req.method} ${req.url}`);
     await connectToDatabase();
-    return app(req, res);
+    
+    // Pass the request to Express app
+    return new Promise<void>((resolve, reject) => {
+      // Express app is a request handler function
+      app(req as any, res as any, (err?: any) => {
+        if (err) {
+          console.error('❌ Express error:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
   } catch (error: any) {
     console.error('❌ Handler error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
   }
 }
+
+export default handler;

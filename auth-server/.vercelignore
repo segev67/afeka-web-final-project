@@ -4,3 +4,5 @@ node_modules
 .DS_Store
 .git
 .env
+test-auth.ts
+dist/
