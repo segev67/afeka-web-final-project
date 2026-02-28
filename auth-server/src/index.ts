@@ -100,9 +100,10 @@ app.use(cookieParser());
 
 // Log all incoming requests for debugging
 app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`\n📥 [${new Date().toISOString()}] ${req.method} ${req.path}`);
-  console.log(`   Headers: ${JSON.stringify(req.headers)}`);
-  console.log(`   Body: ${JSON.stringify(req.body)}`);
+  console.log(`\n📥 ${req.method} ${req.path}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`   Body: ${JSON.stringify(req.body)}`);
+  }
   next();
 });
 

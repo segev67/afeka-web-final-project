@@ -57,14 +57,8 @@ import {
 export const register = async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
   
-  console.log('\n' + '='.repeat(60));
-  console.log('🔐 [REGISTER] ENDPOINT HIT');
-  console.log('='.repeat(60));
-  console.log(`   Method: ${req.method}`);
-  console.log(`   URL: ${req.url}`);
-  console.log(`   Content-Type: ${req.headers['content-type']}`);
-  console.log(`   Body received: ${JSON.stringify(req.body)}`);
-  console.log('='.repeat(60) + '\n');
+  console.log('\n🔐 [REGISTER] Request received');
+  console.log(`   Body: ${JSON.stringify(req.body)}`);
   
   try {
     const { username, email, password } = req.body;
