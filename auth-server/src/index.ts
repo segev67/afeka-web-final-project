@@ -208,5 +208,5 @@ process.on('unhandledRejection', (reason: Error) => {
   console.error('Unhandled Rejection:', reason.message);
 });
 
-// Export app for Vercel serverless (api/index.ts)
-export { app };
+// Export app for Vercel (default export required for Express preset)
+export default app;
