@@ -45,7 +45,7 @@ export interface TokenResponse {
 // CONSTANTS
 // ===========================================
 
-const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:4000';
+const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_SERVER_URL || process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:5001';
 
 // Cookie name for storing access token
 // Note: We store access token in a regular cookie for simplicity
@@ -106,7 +106,7 @@ export const register = async (
   email: string,
   password: string
 ): Promise<AuthResponse> => {
-  const response = await fetch(`${AUTH_URL}/api/register`, {
+  const response = await fetch(`${AUTH_URL}/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ export const login = async (
   email: string,
   password: string
 ): Promise<AuthResponse> => {
-  const response = await fetch(`${AUTH_URL}/api/login`, {
+  const response = await fetch(`${AUTH_URL}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -173,7 +173,7 @@ export const login = async (
  */
 export const refreshAccessToken = async (): Promise<TokenResponse> => {
   try {
-    const response = await fetch(`${AUTH_URL}/api/refresh`, {
+    const response = await fetch(`${AUTH_URL}/auth/refresh`, {
       method: 'POST',
       credentials: 'include', // CRITICAL: Sends httpOnly cookie with refresh token
     });
@@ -205,7 +205,7 @@ export const logout = async (): Promise<void> => {
 
   // Call server to clear httpOnly refresh token cookie
   try {
-    await fetch(`${AUTH_URL}/api/logout`, {
+    await fetch(`${AUTH_URL}/auth/logout`, {
       method: 'POST',
       credentials: 'include',
     });
@@ -229,7 +229,7 @@ export const verifyToken = async (): Promise<User | null> => {
   }
 
   try {
-    const response = await fetch(`${AUTH_URL}/api/verify`, {
+    const response = await fetch(`${AUTH_URL}/auth/verify`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
