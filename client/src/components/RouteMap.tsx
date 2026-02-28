@@ -52,6 +52,7 @@ interface RouteMapProps {
   routes: DayRoute[];
   tripType?: 'bicycle' | 'trek'; // Optional trip type for routing profile
   height?: string;
+  highlightDay?: number | null; // Day to zoom/highlight on map
 }
 
 // ===========================================
@@ -79,9 +80,10 @@ interface RouteMapProps {
  * @param routes - Array of day routes to display
  * @param height - Map container height (default: 500px)
  */
-export default function RouteMap({ routes, tripType, height = '500px' }: RouteMapProps) {
+export default function RouteMap({ routes, tripType, height = '500px', highlightDay }: RouteMapProps) {
   const mapRef = useRef<any>(null);
   const mapInstanceRef = useRef<any>(null);
+  const routeLayersRef = useRef<Map<number, any>>(new Map()); // Store route layers by day
 
   useEffect(() => {
     // Only run on client side
@@ -353,6 +355,35 @@ export default function RouteMap({ routes, tripType, height = '500px' }: RouteMa
       }
     };
   }, [routes, tripType]);
+
+  // Zoom to highlighted day when it changes
+  useEffect(() => {
+    if (!mapInstanceRef.current || !highlightDay) return;
+
+    const L = require('leaflet');
+    const map = mapInstanceRef.current;
+    const route = routes.find(r => r.day === highlightDay);
+    
+    if (!route || !route.majorLandmarks) return;
+
+    // Get coordinates for this day's route
+    const dayCoords = route.majorLandmarks
+      .filter(l => l.lat && l.lng)
+      .map(l => [l.lat!, l.lng!] as [number, number]);
+
+    if (dayCoords.length > 0) {
+      // Zoom to this day's route
+      const bounds = L.latLngBounds(dayCoords);
+      map.fitBounds(bounds, { 
+        padding: [100, 100],
+        maxZoom: 13,
+        animate: true,
+        duration: 1
+      });
+
+      console.log(`🎯 Zoomed to Day ${highlightDay} route`);
+    }
+  }, [highlightDay, routes]);
 
   return (
     <div

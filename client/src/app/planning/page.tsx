@@ -59,6 +59,7 @@ export default function PlanningPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [savedRouteId, setSavedRouteId] = useState<string | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   
   // Route data
   const [generatedRoute, setGeneratedRoute] = useState<RoutePlan | null>(null);
@@ -316,10 +317,15 @@ export default function PlanningPage() {
             =========================================== */}
         <div className="lg:col-span-2 space-y-6">
           {/* Map Container */}
-          <div className="card">
+          <div id="route-map" className="card">
             <h2 className="text-xl font-semibold mb-4">Route Map</h2>
             {generatedRoute && generatedRoute.routes.length > 0 ? (
-              <RouteMap routes={generatedRoute.routes} tripType={generatedRoute.tripType} height="500px" />
+              <RouteMap 
+                routes={generatedRoute.routes} 
+                tripType={generatedRoute.tripType} 
+                height="500px"
+                highlightDay={selectedDay}
+              />
             ) : (
               <div className="bg-gray-100 dark:bg-gray-700 rounded-lg h-[500px] flex items-center justify-center">
                 <div className="text-center text-gray-500">
@@ -337,11 +343,25 @@ export default function PlanningPage() {
           {generatedRoute && generatedRoute.imageUrl && (
             <div className="card animate-fade-in">
               <h2 className="text-xl font-semibold mb-4">Destination Image</h2>
-              <div className="relative w-full h-64 rounded-lg overflow-hidden">
+              <div className="relative w-full h-64 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
                 <img
                   src={generatedRoute.imageUrl}
                   alt={getImageAltText(generatedRoute.country, generatedRoute.city, generatedRoute.tripType)}
                   className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    // Fallback to Lorem Picsum if AI image fails to load
+                    const target = e.target as HTMLImageElement;
+                    if (!target.src.includes('picsum.photos')) {
+                      console.log('⚠️  AI image failed to load, using fallback');
+                      const seed = Math.abs(
+                        `${generatedRoute.country}-${generatedRoute.city}`.split('').reduce(
+                          (acc, char) => ((acc << 5) - acc) + char.charCodeAt(0), 0
+                        )
+                      );
+                      target.src = `https://picsum.photos/seed/${seed}/1200/600`;
+                    }
+                  }}
                 />
               </div>
               <p className="text-sm text-gray-500 mt-2 text-center">
@@ -392,32 +412,50 @@ export default function PlanningPage() {
                     setExpandedDays(newExpanded);
                   };
                   
+                  const handleDayClick = () => {
+                    setSelectedDay(route.day);
+                    // Scroll to map
+                    document.getElementById('route-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  };
+                  
                   return (
                     <div key={route.day} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                       {/* Summary Header - Always Visible */}
-                      <button
-                        onClick={toggleExpand}
-                        className="w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
-                      >
-                        <div className="flex-1">
-                          <h3 className="font-bold text-lg mb-1">
-                            Day {route.day}: {route.title}
-                          </h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                            <span>📏 {route.totalDistanceKm} km</span>
-                            <span>📍 {route.segments.length} segments</span>
-                            <span>⭐ {route.majorLandmarks.length} landmarks</span>
-                          </div>
-                        </div>
-                        <svg 
-                          className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
+                      <div className="flex">
+                        <button
+                          onClick={toggleExpand}
+                          className="flex-1 text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
                         >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg mb-1">
+                              Day {route.day}: {route.title}
+                            </h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                              <span>📏 {route.totalDistanceKm} km</span>
+                              <span>📍 {route.segments.length} segments</span>
+                              <span>⭐ {route.majorLandmarks.length} landmarks</span>
+                            </div>
+                          </div>
+                          <svg 
+                            className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={handleDayClick}
+                          className="px-4 py-2 text-primary hover:bg-primary/10 transition-colors border-l border-gray-200 dark:border-gray-700"
+                          title="View on map"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </button>
+                      </div>
 
                       {/* Detailed Content - Expandable */}
                       {isExpanded && (

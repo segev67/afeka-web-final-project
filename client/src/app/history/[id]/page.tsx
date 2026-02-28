@@ -31,6 +31,7 @@ import { fetchWeatherForRoute, getWeatherIconUrl, formatTemperature } from '@/li
 import { getImageAltText } from '@/lib/images';
 import type { SavedRoute } from '@/types';
 import RouteDetailClient from './RouteDetailClient';
+import ImageWithFallback from '@/components/ImageWithFallback';
 
 // ===========================================
 // HELPER FUNCTION
@@ -144,11 +145,13 @@ export default async function RouteDetailPage({
           {savedRoute.imageUrl && (
             <div className="card">
               <h2 className="text-xl font-semibold mb-4">Destination Image</h2>
-              <div className="relative w-full h-64 rounded-lg overflow-hidden">
-                <img
+              <div className="relative w-full h-64 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+                <ImageWithFallback
                   src={savedRoute.imageUrl}
                   alt={getImageAltText(savedRoute.country, savedRoute.city, savedRoute.tripType)}
                   className="w-full h-full object-cover"
+                  country={savedRoute.country}
+                  city={savedRoute.city}
                 />
               </div>
               <p className="text-sm text-gray-500 mt-2 text-center">

@@ -81,16 +81,19 @@ function createRoutePrompt(
 
   return `You are an EXPERT LOCAL ${isBicycle ? 'CYCLING' : 'HIKING'} GUIDE with intimate knowledge of ${location}.
 
-Your task: Create ${durationDays} realistic ${tripType} route(s) that a human can actually follow.
+Your task: Create EXACTLY ${durationDays} ${isBicycle ? 'days' : 'day(s)'} of realistic ${tripType} route(s) that a human can actually follow.
 
 CRITICAL REQUIREMENTS:
-1. Use REAL place names: actual street names, trail names, landmarks, cities
-2. Routes must be FOLLOWABLE using your descriptions alone (no abstract GPS coordinates)
-3. Write natural narrative directions: "Start at X, head north on Y road, after 5km you'll see Z..."
-4. ${isBicycle ? 'LINEAR ROUTES: City to city, each day connects to the next. Use named roads/highways.' : 'CIRCULAR ROUTES: Start and end at same point. Use named trails and return to origin.'}
-5. Distance per day: ${dailyDistanceMin}-${dailyDistanceMax} km
-6. Include 5-7 major landmarks per day with REAL names
-7. Break each day into 3-5 segments (from landmark A to landmark B)
+1. MUST generate EXACTLY ${durationDays} routes (one per day) - NO MORE, NO LESS
+2. Use REAL place names: actual street names, trail names, landmarks, cities
+3. Routes must be FOLLOWABLE using your descriptions alone (no abstract GPS coordinates)
+4. Write natural narrative directions: "Start at X, head north on Y road, after 5km you'll see Z..."
+5. ${isBicycle ? 'LINEAR ROUTES: City to city, each day connects to the next. Use named roads/highways.' : 'CIRCULAR ROUTES: Start and end at same point. Use named trails and return to origin.'}
+6. Distance per day: ${dailyDistanceMin}-${dailyDistanceMax} km
+7. Include 5-7 major landmarks per day with REAL names
+8. Break each day into 3-5 segments (from landmark A to landmark B)
+
+IMPORTANT: The routes array MUST contain EXACTLY ${durationDays} items (day 1 through day ${durationDays}).
 
 RESEARCH the location first - use real places that exist!
 
