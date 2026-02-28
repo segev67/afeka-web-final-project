@@ -125,6 +125,52 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // ===========================================
+// DATABASE CONNECTION MIDDLEWARE (Production)
+// ===========================================
+
+// Connection state tracking
+let isMongoConnected = false;
+
+async function ensureMongoConnection() {
+  if (isMongoConnected && mongoose.connection.readyState === 1) {
+    return; // Already connected
+  }
+
+  try {
+    const MONGODB_URI = process.env.MONGODB_URI;
+    if (!MONGODB_URI) {
+      throw new Error('MONGODB_URI environment variable is not defined');
+    }
+
+    console.log('🔌 Connecting to MongoDB...');
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+    });
+    isMongoConnected = true;
+    console.log('✅ MongoDB connected');
+  } catch (error: any) {
+    console.error('❌ MongoDB connection failed:', error.message);
+    throw error;
+  }
+}
+
+// For production (Vercel), ensure connection before each request
+if (process.env.NODE_ENV === 'production') {
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await ensureMongoConnection();
+      next();
+    } catch (error: any) {
+      res.status(503).json({
+        success: false,
+        message: 'Database connection failed',
+        error: error.message,
+      });
+    }
+  });
+}
+
+// ===========================================
 // ROUTES
 // ===========================================
 
@@ -182,20 +228,6 @@ app.use((req: Request, res: Response) => {
 // ===========================================
 
 const PORT = process.env.PORT || 4000;
-
-/**
- * MongoDB Connection
- * 
- * DEFENSE EXPLANATION:
- * - mongoose.connect() establishes connection to MongoDB
- * - We use MongoDB Atlas (cloud) for the database
- * - For local development only
- * - For Vercel, connection is handled in api/index.ts
- * 
- * WHAT HAPPENS IF REMOVED:
- * - No database connection = cannot save/retrieve users
- * - All auth operations would fail
- */
 
 // For local development only
 if (process.env.NODE_ENV !== 'production') {
