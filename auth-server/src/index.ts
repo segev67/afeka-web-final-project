@@ -150,66 +150,54 @@ const PORT = process.env.PORT || 4000;
  * DEFENSE EXPLANATION:
  * - mongoose.connect() establishes connection to MongoDB
  * - We use MongoDB Atlas (cloud) for the database
- * - For Vercel serverless: lazy connection on first request
- * - Connection is cached for subsequent requests
+ * - For local development only
+ * - For Vercel, connection is handled in api/index.ts
  * 
  * WHAT HAPPENS IF REMOVED:
  * - No database connection = cannot save/retrieve users
  * - All auth operations would fail
  */
 
-// Cache the database connection for Vercel serverless
-let isConnected = false;
-
-async function connectToDatabase() {
-  if (isConnected) {
-    console.log('📦 Using cached database connection');
-    return;
-  }
-
-  try {
-    await mongoose.connect(process.env.MONGODB_URI as string);
-    isConnected = true;
-    console.log('✅ Connected to MongoDB');
-    console.log('   Database:', process.env.MONGODB_URI?.split('@')[1]?.split('?')[0] || 'database');
-  } catch (error: any) {
-    console.error('❌ MongoDB connection error:', error.message);
-    throw error;
-  }
-}
-
-// For local development, start the server with app.listen()
-// For Vercel production, this code won't run
+// For local development only
 if (process.env.NODE_ENV !== 'production') {
-  connectToDatabase().then(() => {
-    app.listen(PORT, () => {
-      console.log('\n' + '🚀'.repeat(25));
-      console.log(`🚀 Auth Server Running`);
+  mongoose
+    .connect(process.env.MONGODB_URI as string)
+    .then(() => {
+      console.log('\n' + '='.repeat(50));
+      console.log('✅ Connected to MongoDB');
+      console.log('   Database:', process.env.MONGODB_URI?.split('@')[1]?.split('?')[0] || 'localhost');
       console.log('='.repeat(50));
-      console.log(`   Port:        ${PORT}`);
-      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`   Health:      http://localhost:${PORT}/health`);
-      console.log(`   API Base:    http://localhost:${PORT}/auth`);
-      console.log('='.repeat(50));
-      console.log('📡 Endpoints:');
-      console.log('   POST /auth/register  - Register new user');
-      console.log('   POST /auth/login     - Login user');
-      console.log('   POST /auth/refresh   - Refresh access token');
-      console.log('   GET  /auth/verify    - Verify token');
-      console.log('   POST /auth/logout    - Logout user');
-      console.log('='.repeat(50));
-      console.log('🔒 Security Features:');
-      console.log('   ✅ bcrypt password hashing with salt');
-      console.log('   ✅ JWT authentication');
-      console.log('   ✅ httpOnly cookies for refresh tokens');
-      console.log('   ✅ CORS protection');
-      console.log('='.repeat(50) + '\n');
-      console.log('👂 Waiting for requests...\n');
+      
+      // Start server only after DB connection is established
+      app.listen(PORT, () => {
+        console.log('\n' + '🚀'.repeat(25));
+        console.log(`🚀 Auth Server Running`);
+        console.log('='.repeat(50));
+        console.log(`   Port:        ${PORT}`);
+        console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`   Health:      http://localhost:${PORT}/health`);
+        console.log(`   API Base:    http://localhost:${PORT}/auth`);
+        console.log('='.repeat(50));
+        console.log('📡 Endpoints:');
+        console.log('   POST /auth/register  - Register new user');
+        console.log('   POST /auth/login     - Login user');
+        console.log('   POST /auth/refresh   - Refresh access token');
+        console.log('   GET  /auth/verify    - Verify token');
+        console.log('   POST /auth/logout    - Logout user');
+        console.log('='.repeat(50));
+        console.log('🔒 Security Features:');
+        console.log('   ✅ bcrypt password hashing with salt');
+        console.log('   ✅ JWT authentication');
+        console.log('   ✅ httpOnly cookies for refresh tokens');
+        console.log('   ✅ CORS protection');
+        console.log('='.repeat(50) + '\n');
+        console.log('👂 Waiting for requests...\n');
+      });
+    })
+    .catch((error) => {
+      console.error('\n❌ MongoDB connection failed:', error.message);
+      process.exit(1);
     });
-  }).catch((error) => {
-    console.error('\n❌ MongoDB connection failed:', error.message);
-    process.exit(1);
-  });
 }
 
 // Handle unhandled promise rejections
@@ -217,9 +205,5 @@ process.on('unhandledRejection', (reason: Error) => {
   console.error('Unhandled Rejection:', reason.message);
 });
 
-// Export handler for Vercel serverless functions
-// This handler is called for EACH incoming request
-export default async function handler(req: any, res: any) {
-  await connectToDatabase();
-  return app(req, res);
-}
+// Export app for Vercel serverless (api/index.ts)
+export { app };
