@@ -95,12 +95,30 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // ===========================================
+// REQUEST LOGGING MIDDLEWARE
+// ===========================================
+
+// Log all incoming requests for debugging
+app.use((req: Request, res: Response, next: NextFunction) => {
+  console.log(`\n📥 [${new Date().toISOString()}] ${req.method} ${req.path}`);
+  console.log(`   Headers: ${JSON.stringify(req.headers)}`);
+  console.log(`   Body: ${JSON.stringify(req.body)}`);
+  next();
+});
+
+// ===========================================
 // ROUTES
 // ===========================================
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok', server: 'auth-server' });
+  console.log('🏥 Health check requested');
+  res.status(200).json({ 
+    status: 'ok', 
+    server: 'auth-server',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Mount authentication routes at /auth prefix
