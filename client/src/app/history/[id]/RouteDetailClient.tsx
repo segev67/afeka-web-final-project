@@ -82,6 +82,17 @@ export default function RouteDetailClient({ routes, routeId, userId, tripType, u
   const getWeatherIconUrl = (icon: string) => `https://openweathermap.org/img/wn/${icon}@2x.png`;
   const formatTemperature = (temp: number) => `${Math.round(temp)}°C`;
   
+  // Color palette matching the map markers
+  const dayColors = [
+    '#2d5a27', // Day 1: Forest green
+    '#8b5a2b', // Day 2: Earth brown
+    '#3b82f6', // Day 3: Blue
+    '#f59e0b', // Day 4: Amber
+    '#ef4444', // Day 5: Red
+  ];
+  
+  const getDayColor = (index: number) => dayColors[index % dayColors.length];
+  
   // Helper to format dates
   const getTomorrowDate = (daysAhead: number) => {
     const date = new Date();
@@ -176,7 +187,10 @@ export default function RouteDetailClient({ routes, routeId, userId, tripType, u
                     >
                       <div className="flex items-center gap-4">
                         {/* Day Badge */}
-                        <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0 shadow-md">
+                        <div 
+                          className="w-12 h-12 rounded-full text-white flex items-center justify-center font-bold flex-shrink-0 shadow-md"
+                          style={{ backgroundColor: getDayColor(index) }}
+                        >
                           {route.day}
                         </div>
                         

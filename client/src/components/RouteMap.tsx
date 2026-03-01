@@ -120,8 +120,10 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
       console.log('🗺️  RouteMap: Rendering', routes.length, 'routes with landmarks');
 
       // Find first landmark with coordinates for initial map center
+      // Focus on the entry point (first landmark) of the route
       let initialLat = 46.2044; // Default: Geneva
       let initialLng = 6.1432;
+      let foundEntryPoint = false;
       
       for (const route of routes) {
         if (route.majorLandmarks && route.majorLandmarks.length > 0) {
@@ -129,13 +131,15 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
           if (firstLandmark.lat && firstLandmark.lng) {
             initialLat = firstLandmark.lat;
             initialLng = firstLandmark.lng;
+            foundEntryPoint = true;
+            console.log(`🎯 Map centering on entry point: ${firstLandmark.name}`);
             break;
           }
         }
       }
 
-      // Initialize map
-      const map = L.map(mapRef.current).setView([initialLat, initialLng], 10);
+      // Initialize map centered on entry point with closer zoom for detail
+      const map = L.map(mapRef.current).setView([initialLat, initialLng], foundEntryPoint ? 14 : 10);
       mapInstanceRef.current = map;
 
       // Add OpenStreetMap tile layer
@@ -335,11 +339,18 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
         }
       });
 
-      // Fit map to show all landmarks
+      // Fit map to show all landmarks, but prioritize entry point zoom
       if (allCoords.length > 0) {
-        const bounds = L.latLngBounds(allCoords);
-        map.fitBounds(bounds, { padding: [50, 50] });
-        console.log(`✅ Map fitted to ${allCoords.length} landmark coordinates`);
+        // If we have an entry point, zoom to it closely first
+        if (foundEntryPoint) {
+          // Keep the close zoom on entry point - don't fit all bounds
+          console.log(`✅ Map zoomed to entry point at zoom level 14`);
+        } else {
+          // No entry point found, fit all landmarks
+          const bounds = L.latLngBounds(allCoords);
+          map.fitBounds(bounds, { padding: [50, 50] });
+          console.log(`✅ Map fitted to ${allCoords.length} landmark coordinates`);
+        }
       } else {
         console.warn('⚠️  No coordinates available for map bounds');
       }
@@ -372,14 +383,23 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
       .map(l => [l.lat!, l.lng!] as [number, number]);
 
     if (dayCoords.length > 0) {
-      // Zoom to this day's route
-      const bounds = L.latLngBounds(dayCoords);
-      map.fitBounds(bounds, { 
-        padding: [100, 100],
-        maxZoom: 13,
-        animate: true,
-        duration: 1
-      });
+      // For single landmark, zoom close. For multiple, fit bounds with high zoom
+      if (dayCoords.length === 1) {
+        // Single point - zoom very close
+        map.setView(dayCoords[0], 15, {
+          animate: true,
+          duration: 1
+        });
+      } else {
+        // Multiple points - fit bounds with close zoom
+        const bounds = L.latLngBounds(dayCoords);
+        map.fitBounds(bounds, { 
+          padding: [80, 80],
+          maxZoom: 14, // Increased from 13 to 14 for closer zoom
+          animate: true,
+          duration: 1
+        });
+      }
 
       console.log(`🎯 Zoomed to Day ${highlightDay} route`);
     }
