@@ -212,5 +212,5 @@ export const getRefreshTokenCookieOptions = () => ({
   secure: process.env.NODE_ENV === 'production', // HTTPS only in production
   sameSite: 'strict' as const, // Prevents CSRF attacks
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-  path: '/api/refresh', // Cookie only sent to refresh endpoint
+  path: '/', // Cookie sent with all requests (needed for silent refresh)
 });

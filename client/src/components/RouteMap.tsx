@@ -149,13 +149,40 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
       }).addTo(map);
 
       // Color palette for different days
+      // Extended to support up to 30-day trips with distinct colors
       const colors = [
         '#2d5a27', // Day 1: Forest green
         '#8b5a2b', // Day 2: Earth brown
         '#3b82f6', // Day 3: Blue
         '#f59e0b', // Day 4: Amber
         '#ef4444', // Day 5: Red
+        '#8b5cf6', // Day 6: Purple
+        '#ec4899', // Day 7: Pink
+        '#14b8a6', // Day 8: Teal
+        '#f97316', // Day 9: Orange
+        '#06b6d4', // Day 10: Cyan
+        '#84cc16', // Day 11: Lime
+        '#a855f7', // Day 12: Violet
+        '#10b981', // Day 13: Emerald
+        '#f43f5e', // Day 14: Rose
+        '#6366f1', // Day 15: Indigo
+        '#eab308', // Day 16: Yellow
+        '#22c55e', // Day 17: Green
+        '#db2777', // Day 18: Fuchsia
+        '#0ea5e9', // Day 19: Sky
+        '#d97706', // Day 20: Orange-brown
+        '#7c3aed', // Day 21: Purple-blue
+        '#059669', // Day 22: Green-teal
+        '#be123c', // Day 23: Dark rose
+        '#0284c7', // Day 24: Dark sky
+        '#ca8a04', // Day 25: Dark yellow
+        '#16a34a', // Day 26: Dark green
+        '#9333ea', // Day 27: Dark purple
+        '#dc2626', // Day 28: Dark red
+        '#0891b2', // Day 29: Dark cyan
+        '#65a30d', // Day 30: Dark lime
       ];
+      console.log('🎨 Color palette loaded:', `${colors.length} colors for up to ${colors.length} days`);
 
       // All coordinates for fitting map bounds
       const allCoords: [number, number][] = [];
@@ -169,6 +196,8 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
 
         const color = colors[routeIndex % colors.length];
         const landmarks = route.majorLandmarks || [];
+        
+        console.log(`   Using color: ${color} (day ${route.day})`);
 
         // Filter landmarks that have valid coordinates
         const validLandmarks = landmarks.filter(l => 
@@ -196,7 +225,7 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
           const numberIcon = L.divIcon({
             className: 'custom-number-icon',
             html: `
-              <div style="
+              <div class="route-marker-circle" style="
                 background-color: ${color};
                 border: 3px solid white;
                 border-radius: 50%;
@@ -209,8 +238,10 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
                 font-weight: bold;
                 font-size: 16px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                line-height: 1;
+                text-align: center;
               ">
-                ${landmarkIndex + 1}
+                <span style="display: block; position: relative; z-index: 10;">${landmarkIndex + 1}</span>
               </div>
             `,
             iconSize: [36, 36],
@@ -266,9 +297,8 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
               // CRITICAL: Override default error handler to suppress console errors
               // The default handler logs to console.error which we don't want
               errorHandler: function(error: any) {
-                // Silently handle the error - just log to console.log instead of console.error
-                console.log(`   ℹ️  Note: Route line not available for route ${routeIndex + 1} (waypoints visible)`);
-                // Don't call the default error handler which would log console.error
+                // Log routing errors for debugging
+                console.warn(`   ⚠️  Routing service error for route ${routeIndex + 1}:`, error);
               },
               // Don't show default markers (we have our custom numbered ones)
               createMarker: function() { return false; },
@@ -291,6 +321,8 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
               // Collapse the instruction panel
               collapsible: false,
             }).addTo(map);
+
+            console.log(`   🔧 Routing control created for route ${routeIndex + 1}`);
 
             // Add a popup to the route line showing route info
             routingControl.on('routesfound', function(e: any) {
@@ -326,7 +358,8 @@ export default function RouteMap({ routes, tripType, height = '500px', highlight
             // Handle routing errors (OSRM service issues, no route found, etc.)
             // DEFENSE: Gracefully handle routing failures without breaking the map
             routingControl.on('routingerror', function(e: any) {
-              console.log(`   ℹ️  Note: Route line not available for route ${routeIndex + 1} (waypoints visible)`);
+              console.warn(`   ⚠️  ROUTING ERROR for route ${routeIndex + 1}:`, e);
+              console.log(`   ℹ️  Waypoints are visible, but route line could not be drawn`);
               // Silently fail - markers are still visible, just no connecting line
             });
 

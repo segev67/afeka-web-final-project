@@ -31,25 +31,25 @@ const WEATHER_BASE_URL = 'https://api.openweathermap.org/data/2.5';
 // ===========================================
 
 /**
- * Fetch 3-Day Weather Forecast
+ * Fetch Weather Forecast (3 Days - Project Requirement)
  * 
  * DEFENSE EXPLANATION:
  * 
- * WHY 3 DAYS?
- * - Project requirement: "real weather forecast for the upcoming three days"
- * - Assumption: route starts tomorrow
+ * PROJECT REQUIREMENT:
+ * - "Every product is accompanied by a real weather forecast
+ *    for the upcoming three days on the routes"
+ * - Always fetch 3 days, regardless of trip duration
  * 
- * API DETAILS:
- * - OpenWeatherMap free tier: 5-day/3-hour forecast
- * - We extract next 3 days from the forecast
- * - Returns temperature, conditions, wind, humidity
+ * API LIMITATION:
+ * - OpenWeatherMap free tier: 5-day/3-hour forecast (maximum)
+ * - We extract 3 days as per project requirement
  * 
  * ERROR HANDLING:
  * - If API fails, return empty array (non-blocking)
  * - User can still see route, just without weather
  * 
  * @param location - Coordinate to get weather for
- * @returns Array of 3 days of weather data
+ * @returns Array of 3 days weather data
  */
 export async function fetchWeatherForecast(
   location: Coordinate
@@ -61,6 +61,7 @@ export async function fetchWeatherForecast(
 
   try {
     console.log(`🌤️  Fetching weather for ${location.lat}, ${location.lng}...`);
+    console.log(`   Fetching 3-day forecast (project requirement)`);
 
     // Call OpenWeatherMap 5-day forecast API
     const url = `${WEATHER_BASE_URL}/forecast?lat=${location.lat}&lon=${location.lng}&appid=${WEATHER_API_KEY}&units=metric`;
@@ -75,9 +76,8 @@ export async function fetchWeatherForecast(
 
     const data = await response.json();
 
-    // Extract 3-day forecast
-    // DEFENSE: We group forecasts by day and take one per day
-    const forecast = extractThreeDayForecast(data);
+    // Extract 3-day forecast (project requirement)
+    const forecast = extractThreeDayForecast(data, 3);
 
     console.log(`✅ Weather fetched: ${forecast.length} days`);
 
@@ -93,20 +93,21 @@ export async function fetchWeatherForecast(
  * Extract 3-Day Forecast from API Response
  * 
  * DEFENSE EXPLANATION:
- * - OpenWeatherMap returns 40 forecasts (5 days × 8 times/day)
- * - We need 1 forecast per day for 3 days
+ * - OpenWeatherMap free tier returns 40 forecasts (5 days × 8 times/day)
+ * - We extract exactly 3 days (project requirement)
  * - We take the midday (12:00) forecast for each day
  * 
  * @param apiData - Raw API response from OpenWeatherMap
+ * @param maxDays - Maximum days to fetch (default 3 for project requirement)
  * @returns Formatted 3-day forecast
  */
-function extractThreeDayForecast(apiData: any): WeatherData[] {
+function extractThreeDayForecast(apiData: any, maxDays: number = 3): WeatherData[] {
   const forecasts: WeatherData[] = [];
   const seenDates = new Set<string>();
 
   // Process each forecast entry
   for (const item of apiData.list) {
-    if (forecasts.length >= 3) break; // Only need 3 days
+    if (forecasts.length >= maxDays) break; // Limit by maxDays (API constraint)
 
     // Extract date (YYYY-MM-DD)
     const date = item.dt_txt.split(' ')[0];
@@ -133,13 +134,13 @@ function extractThreeDayForecast(apiData: any): WeatherData[] {
     }
   }
 
-  // If we couldn't get midday forecasts, just take first 3 unique days
-  if (forecasts.length < 3) {
+  // If we couldn't get midday forecasts, just take first N unique days
+  if (forecasts.length < Math.min(maxDays, 3)) {
     forecasts.length = 0;
     seenDates.clear();
 
     for (const item of apiData.list) {
-      if (forecasts.length >= 3) break;
+      if (forecasts.length >= maxDays) break;
 
       const date = item.dt_txt.split(' ')[0];
       
@@ -192,7 +193,7 @@ export function formatTemperature(temp: number): string {
  * For now, we just use the start point.
  * 
  * @param locations - Array of coordinates
- * @returns Weather data for first location
+ * @returns Weather data for first location (3 days - project requirement)
  */
 export async function fetchWeatherForRoute(
   locations: Coordinate[]

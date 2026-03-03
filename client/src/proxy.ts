@@ -3,30 +3,34 @@
  * NEXT.JS PROXY - JWT VALIDATION
  * ===========================================
  * 
- * This proxy (formerly middleware) runs on EVERY request to protected routes.
+ * This proxy runs on EVERY request to protected routes.
  * 
  * DEFENSE NOTES:
  * 
  * WHAT IS NEXT.JS PROXY?
- * - Next.js 16+ renamed middleware to proxy
- * - Runs on the Edge (before the request reaches the page)
+ * - Next.js 16 renamed "middleware" to "proxy" (February 2026)
+ * - Runs before the request reaches the page
  * - Can redirect, rewrite, or modify headers
- * - Located at src/proxy.ts
+ * - Located at src/proxy.ts (formerly middleware.ts)
  * - Uses matcher config to specify which routes it runs on
+ * - Now runs on Node.js runtime by default (vs Edge in Next.js 15)
  * 
  * PROJECT REQUIREMENT:
  * "Access to every page is accompanied by middleware authorization with the token
  *  (soft - unnoticed by the user)"
+ * 
+ * NOTE: The project says "middleware" because that was the term when requirements
+ * were written. Next.js 16 renamed it to "proxy" for clarity.
  * 
  * "SOFT" AUTHORIZATION MEANS:
  * - We check if token exists and is valid
  * - If invalid, redirect to login
  * - User doesn't see error messages, just gets redirected
  * 
- * IMPORTANT LIMITATION:
- * - Edge runtime doesn't support Node.js modules like 'jsonwebtoken'
- * - We use manual JWT verification
- * - For simplicity, we do basic validation here and full validation on API calls
+ * IMPORTANT:
+ * - We use manual JWT verification for compatibility
+ * - Full validation happens on API calls
+ * - For simplicity, we do basic validation here
  */
 
 import { NextResponse } from 'next/server';
@@ -223,7 +227,7 @@ export async function proxy(request: NextRequest) {
     if (!accessToken) {
       // Try to refresh if we have a refresh token
       if (refreshToken) {
-        console.log(`[Proxy] No access token, attempting silent refresh...`);
+            console.log(`[Proxy] No access token, attempting silent refresh...`);
         const refreshResult = await refreshAccessToken(refreshToken);
         
         if (refreshResult) {

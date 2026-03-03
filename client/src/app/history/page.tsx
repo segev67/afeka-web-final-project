@@ -24,7 +24,7 @@ import { cookies } from 'next/headers';
 import dbConnect from '@/lib/db';
 import Route from '@/lib/models/Route';
 import type { SavedRoute } from '@/types';
-import ImageWithFallback from '@/components/ImageWithFallback';
+import RouteListClient from '@/components/RouteListClient';
 
 // ===========================================
 // HELPER FUNCTION - GET USER FROM TOKEN
@@ -99,10 +99,20 @@ export default async function HistoryPage() {
   // Fetch user's routes, newest first
   // DEFENSE: .lean() returns plain JavaScript objects (no Mongoose document methods)
   // This is faster and avoids serialization issues with React Server Components
-  const routes = await Route.find({ userId })
+  const routesFromDb = await Route.find({ userId })
     .sort({ createdAt: -1 })
     .lean()
     .exec();
+
+  // CRITICAL: Convert MongoDB objects to plain JSON for Client Component
+  // Server Components can't pass ObjectId, Date objects directly to Client Components
+  // We must serialize them to strings/numbers first
+  const routes = routesFromDb.map((route: any) => ({
+    ...route,
+    _id: route._id.toString(), // Convert ObjectId to string
+    createdAt: route.createdAt?.toISOString() || new Date().toISOString(), // Convert Date to ISO string
+    updatedAt: route.updatedAt?.toISOString() || new Date().toISOString(), // Convert Date to ISO string
+  }));
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -194,105 +204,8 @@ export default async function HistoryPage() {
             </Link>
           </div>
         ) : (
-          <>
-            {/* Routes Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {routes.map((route) => {
-                // Type assertion for lean() result
-                const savedRoute = route as unknown as SavedRoute;
-                
-                return (
-                  <Link
-                    key={savedRoute._id.toString()}
-                    href={`/history/${savedRoute._id}`}
-                    className="group block"
-                  >
-                    <div className="card hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 flex flex-col h-full overflow-hidden border-2 border-transparent hover:border-primary/30">
-                      {/* Hero Image */}
-                      {savedRoute.imageUrl && (
-                        <div className="relative h-48 w-full overflow-hidden bg-gray-200 dark:bg-gray-700">
-                          <ImageWithFallback
-                            src={savedRoute.imageUrl}
-                            alt={`${savedRoute.city}, ${savedRoute.country}`}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            country={savedRoute.country}
-                            city={savedRoute.city}
-                          />
-                          <div className="absolute top-3 right-3">
-                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/90 dark:bg-gray-800/90 text-gray-900 dark:text-white shadow-lg">
-                              {savedRoute.tripType === 'bicycle' ? '🚴 Cycling' : '🥾 Hiking'}
-                            </span>
-                          </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                        </div>
-                      )}
-
-                      <div className="p-5 flex-1 flex flex-col">
-                        {/* Route Header */}
-                        <div className="mb-4">
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-primary transition-colors">
-                            {savedRoute.city}
-                          </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate flex items-center gap-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            </svg>
-                            {savedRoute.region && `${savedRoute.region}, `}{savedRoute.country}
-                          </p>
-                        </div>
-
-                        {/* Quick Stats */}
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                            <div className="text-2xl font-bold text-primary">
-                              {savedRoute.durationDays}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                              {savedRoute.durationDays === 1 ? 'Day' : 'Days'}
-                            </div>
-                          </div>
-                          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                            <div className="text-2xl font-bold text-primary">
-                              {savedRoute.totalDistanceKm}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                              Kilometers
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Route Summary */}
-                        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-4">
-                          <span className="flex items-center gap-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                            </svg>
-                            {savedRoute.routes.length} segment{savedRoute.routes.length > 1 ? 's' : ''}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            {new Date(savedRoute.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        </div>
-
-                        {/* Action Button */}
-                        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex items-center justify-between text-primary group-hover:text-primary-dark">
-                            <span className="font-semibold text-sm">View Details & Weather</span>
-                            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </>
+          /* Route List with Filters */
+          <RouteListClient routes={routes as unknown as SavedRoute[]} />
         )}
 
         {/* Info Box */}

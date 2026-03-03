@@ -101,6 +101,7 @@ export default async function RouteDetailPage({
 
   // Fetch updated weather
   // PROJECT REQUIREMENT: "weather forecast for the start of execution tomorrow"
+  // Always fetch 3 days (project requirement), regardless of trip duration
   const firstLandmark = savedRoute.routes[0]?.majorLandmarks?.[0];
   const updatedWeather = firstLandmark?.lat && firstLandmark?.lng 
     ? await fetchWeatherForRoute([{ lat: firstLandmark.lat, lng: firstLandmark.lng }])
