@@ -78,11 +78,22 @@ function createRoutePrompt(
   const isBicycle = tripType === 'bicycle';
   const dailyDistanceMin = isBicycle ? 30 : 5;
   const dailyDistanceMax = isBicycle ? 70 : 10;
+  const isLongTrip = durationDays >= 10;
+
+  const compactNote = isLongTrip
+    ? `
+COMPACT OUTPUT (${durationDays} days): To avoid truncation, use SHORT format so the full JSON fits in one response:
+- Use exactly 2-3 segments per day (not more).
+- Use 3-4 major landmarks per day with lat/lng.
+- One short sentence per segment "description" (e.g. "Walk north from X to Y along the river.").
+- Omit or use one word for landmark "description" and route "description" if needed.
+`
+    : '';
 
   return `You are an EXPERT LOCAL ${isBicycle ? 'CYCLING' : 'HIKING'} GUIDE with intimate knowledge of ${location}.
 
 Your task: Create EXACTLY ${durationDays} ${isBicycle ? 'days' : 'day(s)'} of realistic ${tripType} route(s) that a human can actually follow.
-
+${compactNote}
 CRITICAL REQUIREMENTS:
 1. MUST generate EXACTLY ${durationDays} routes (one per day) - NO MORE, NO LESS
 2. Use REAL place names: actual street names, trail names, landmarks, cities
@@ -90,12 +101,17 @@ CRITICAL REQUIREMENTS:
 4. Write natural narrative directions: "Start at X, head north on Y road, after 5km you'll see Z..."
 5. ${isBicycle ? 'LINEAR ROUTES: City to city, each day connects to the next. Use named roads/highways.' : 'CIRCULAR ROUTES: Start and end at same point. Use named trails and return to origin.'}
 6. Distance per day: ${dailyDistanceMin}-${dailyDistanceMax} km
-7. Include 5-7 major landmarks per day with REAL names
-8. Break each day into 3-5 segments (from landmark A to landmark B)
+7. Include ${isLongTrip ? '3-4' : '5-7'} major landmarks per day with REAL names
+8. Break each day into ${isLongTrip ? '2-3' : '3-5'} segments (from landmark A to landmark B)
 
 IMPORTANT: The routes array MUST contain EXACTLY ${durationDays} items (day 1 through day ${durationDays}).
 
 RESEARCH the location first - use real places that exist!
+
+JSON RULES (critical for valid parsing):
+- Return ONLY valid JSON. No markdown, no extra text.
+- Inside string values: escape double-quotes as \\", and do NOT use literal newlines (use spaces or \\n).
+- Keep each "description" to 1-2 short sentences to avoid truncation.
 
 OUTPUT FORMAT (JSON only):
 {
@@ -137,7 +153,100 @@ EXAMPLES of good narrative directions:
 - "Exit Coppet village center heading east on Route de Lausanne (N1). The path follows the lakeshore with views of the Alps..."
 - "Take the marked trail from Chamonix town square. Follow red trail markers uphill through forest for 3km to Refuge de Plan Joran..."
 
-CRITICAL: Return ONLY valid JSON. Use real places. Make routes followable by humans.`;
+CRITICAL: Return ONLY valid JSON. Use real places. Make routes followable by humans. Escape quotes in strings. No newlines inside strings.`;
+}
+
+/**
+ * Normalize raw LLM text for JSON parsing: fix common issues that break JSON.parse.
+ * Applied to both initial text and regex-extracted fallback.
+ */
+function normalizeJsonText(raw: string): string {
+  return raw
+    .replace(/\r\n/g, ' ')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, ' ')
+    .replace(/\t/g, ' ');
+}
+
+/**
+ * If the JSON string looks truncated, try to close it.
+ * Handles truncation both outside and inside a string (e.g. mid-description).
+ * Closes in reverse order of opening (e.g. } ] } ] }) so the result is valid JSON.
+ * Returns the repaired string or null if repair is not applicable.
+ */
+function tryCloseTruncatedJson(str: string): string | null {
+  let repaired = str.trim();
+  // Count unescaped double-quotes to detect if we're inside a string
+  const unescapedQuotes = (repaired.match(/(?<!\\)"/g) || []).length;
+  const inString = unescapedQuotes % 2 !== 0;
+  if (inString) {
+    repaired += '"'; // close the truncated string
+  }
+  // Build closing sequence in reverse order of opening (track nesting)
+  const stack: string[] = [];
+  let inStr = false;
+  let escape = false;
+  let i = 0;
+  while (i < repaired.length) {
+    const c = repaired[i];
+    if (escape) {
+      escape = false;
+      i++;
+      continue;
+    }
+    if (c === '\\' && inStr) {
+      escape = true;
+      i++;
+      continue;
+    }
+    if ((c === '"') && !escape) {
+      inStr = !inStr;
+      i++;
+      continue;
+    }
+    if (!inStr) {
+      if (c === '{') stack.push('}');
+      else if (c === '[') stack.push(']');
+      else if (c === '}' || c === ']') stack.pop();
+    }
+    i++;
+  }
+  if (stack.length > 0) {
+    repaired += stack.reverse().join('');
+  }
+  if (!inString && stack.length === 0) return null;
+  return repaired;
+}
+
+/**
+ * Sanitize route data after parsing (especially after truncation recovery).
+ * - Drops routes with fewer than 2 segments so validation passes.
+ * - Renumbers days to 1, 2, 3...
+ * - Fills missing totalDistanceKm from sum of per-route distances.
+ * - Adds defaults for missing difficulty/recommendations.
+ */
+function sanitizeRecoveredRouteData(data: LLMRouteResponse): LLMRouteResponse {
+  const routes = (data.routes || []).filter((r) => {
+    if (!Array.isArray(r.segments) || r.segments.length < 2) return false;
+    const withCoords = (r.majorLandmarks || []).filter(
+      (m) => m?.lat != null && m?.lng != null
+    );
+    return withCoords.length >= 2;
+  });
+  if (routes.length === 0) {
+    return data;
+  }
+  const renumbered = routes.map((r, i) => ({ ...r, day: i + 1 }));
+  const totalDistanceKm =
+    data.totalDistanceKm ??
+    renumbered.reduce((sum, r) => sum + (Number(r.totalDistanceKm) || 0), 0);
+  return {
+    ...data,
+    routes: renumbered,
+    totalDistanceKm: Math.round(totalDistanceKm * 10) / 10,
+    difficulty: data.difficulty || 'moderate',
+    recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+  };
 }
 
 // ===========================================
@@ -204,33 +313,47 @@ export async function generateRoute(
       jsonText = jsonText.replace(/```\n?/g, '');
     }
 
-    // Try to fix common JSON issues
-    // DEFENSE: LLMs sometimes generate invalid JSON with unescaped quotes
-    jsonText = jsonText
-      .replace(/\n/g, ' ') // Remove newlines in strings
-      .replace(/\r/g, '') // Remove carriage returns
-      .replace(/\t/g, ' '); // Replace tabs with spaces
+    // Normalize for parsing (fix unescaped newlines/tabs that break JSON)
+    jsonText = normalizeJsonText(jsonText);
 
     // Parse JSON with error handling
     let routeData: LLMRouteResponse;
     try {
       routeData = JSON.parse(jsonText);
     } catch (parseError) {
-      console.error('❌ JSON parsing failed, raw response:', text.substring(0, 500));
-      
-      // Try to extract just the JSON object using regex
+      const len = text.length;
+      console.error('❌ JSON parsing failed. Response length:', len);
+      console.error('   First 400 chars:', text.substring(0, 400));
+      console.error('   Last 200 chars:', text.substring(Math.max(0, len - 200)));
+
+      // Try regex extraction from raw text, then normalize and parse
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
+        let candidate = normalizeJsonText(jsonMatch[0]);
         try {
-          routeData = JSON.parse(jsonMatch[0]);
-          console.log('✅ Recovered JSON using regex extraction');
+          routeData = JSON.parse(candidate);
+          console.log('✅ Recovered JSON using regex + normalization');
         } catch {
-          throw new Error('Failed to parse Gemini response as JSON. The AI may have returned malformed data.');
+          // If still invalid, try closing truncated JSON (missing trailing } ] } )
+          candidate = tryCloseTruncatedJson(candidate);
+          if (candidate) {
+            try {
+              routeData = JSON.parse(candidate);
+              console.log('✅ Recovered JSON after closing truncated brackets');
+            } catch {
+              throw new Error('Failed to parse Gemini response as JSON. The AI may have returned malformed or truncated data.');
+            }
+          } else {
+            throw new Error('Failed to parse Gemini response as JSON. The AI may have returned malformed data.');
+          }
         }
       } else {
         throw new Error('No valid JSON found in Gemini response');
       }
     }
+
+    // Sanitize after parse (drops incomplete routes from truncation, fills totalDistanceKm)
+    routeData = sanitizeRecoveredRouteData(routeData);
 
     // Basic validation
     if (!routeData.routes || routeData.routes.length === 0) {

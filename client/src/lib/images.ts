@@ -2,19 +2,15 @@
  * ===========================================
  * IMAGE UTILITIES
  * ===========================================
- * 
- * Utilities for fetching country-typical images.
- * 
+ *
  * PROJECT REQUIREMENT:
- * "The route page will be accompanied by one image (typical of the country), 
- *  real or produced in generative code. No control over the quality of the 
- *  image is required."
- * 
+ * "The route page will be accompanied by one image (typical of the country),
+ *  real or produced in generative code."
+ *
  * APPROACH:
- * - Use AI image generation (Pollinations.ai - free, no API key)
- * - Generates images based on location and trip type
- * - Fallback to Lorem Picsum if generation fails
- * - "Generative code" as per requirement
+ * 1. Unsplash (primary) – real photos by location search; set UNSPLASH_ACCESS_KEY in .env
+ * 2. Pollinations.ai (fallback) – AI-generated image, no API key
+ * 3. Picsum.photos (final fallback) – deterministic placeholder
  */
 
 /**
@@ -49,46 +45,90 @@ function generateLocationSeed(country: string, city?: string, tripType?: string)
  * @param tripType - Type of trip (for better image context)
  * @returns Image URL
  */
+/** Unsplash search response (minimal type for our use) */
+interface UnsplashSearchResult {
+  results?: { urls?: { regular?: string; raw?: string }; [key: string]: unknown }[];
+}
+
+/**
+ * Try to get a real photo from Unsplash for the location.
+ * Returns image URL or undefined if no key, no results, or error.
+ */
+async function tryUnsplashImage(
+  country: string,
+  city?: string,
+  tripType?: 'trek' | 'bicycle'
+): Promise<string | undefined> {
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey?.trim()) return undefined;
+
+  const query = [city, country, tripType === 'trek' ? 'hiking landscape' : 'cycling landscape']
+    .filter(Boolean)
+    .join(' ');
+  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=5&orientation=landscape&client_id=${accessKey}`;
+
+  try {
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) return undefined;
+    const data = (await res.json()) as UnsplashSearchResult;
+    const results = data?.results;
+    if (!Array.isArray(results) || results.length === 0) return undefined;
+    const photo = results[0];
+    const imageUrl = photo?.urls?.regular || photo?.urls?.raw;
+    if (imageUrl) return imageUrl;
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
+/**
+ * Build Pollinations.ai image URL (AI-generated). No API key required.
+ */
+function getPollinationsUrl(country: string, city?: string, tripType?: 'trek' | 'bicycle'): string {
+  const locationFirst = `${country}${city ? ` ${city}` : ''}`.trim();
+  const activityNoun = tripType === 'trek' ? 'hiking trail' : 'cycling path';
+  const prompt = `${locationFirst}, typical ${country} landscape, ${activityNoun}, scenic view, ${
+    tripType === 'trek' ? 'mountains and nature trail' : 'countryside road'
+  }, iconic ${country} scenery, professional photography, vibrant colors`;
+  const encodedPrompt = encodeURIComponent(prompt);
+  const seed = generateLocationSeed(country, city, tripType);
+  return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1200&height=600&seed=${seed}&nologo=true&enhance=true`;
+}
+
 export async function fetchCountryImage(
   country: string,
   city?: string,
   tripType?: 'trek' | 'bicycle'
 ): Promise<string | undefined> {
+  const locationLabel = city ? `${city}, ${country}` : country;
+  console.log(`🖼️  Image for: ${locationLabel}`);
+
   try {
-    const location = city ? `${city}, ${country}` : country;
-    const activity = tripType === 'trek' ? 'hiking trail' : 'cycling route';
-    
-    // Generate consistent seed for this location
-    const seed = generateLocationSeed(country, city, tripType);
-    
-    console.log(`🖼️  Generating image for: ${location} (${tripType})`);
+    // 1. Primary: Unsplash (real photos) – requires UNSPLASH_ACCESS_KEY in .env
+    const unsplashUrl = await tryUnsplashImage(country, city, tripType);
+    if (unsplashUrl) {
+      console.log('✅ Using Unsplash (real photo)');
+      return unsplashUrl;
+    }
 
-    // Strategy 1: Try Pollinations.ai (AI-generated)
-    // This is "generative code" as per requirements
-    const prompt = `scenic ${activity} landscape in ${location}, beautiful nature, ${
-      tripType === 'trek' ? 'mountains trails' : 'cycling paths countryside'
-    }, professional photography, vibrant`;
-    
-    const encodedPrompt = encodeURIComponent(prompt);
-    
-    // Use direct image URL format that works better with Next.js
-    // Adding cache parameter to help with loading
-    const aiImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1200&height=600&seed=${seed}&nologo=true&enhance=true`;
-    
-    console.log('✅ AI-generated image URL created (Pollinations.ai)');
-    console.log(`   Seed: ${seed} for ${location}`);
-    console.log(`   Fallback ready: Lorem Picsum`);
-    
-    // Return AI URL with note that fallback exists in UI
-    return aiImageUrl;
-
+    // 2. Fallback: Pollinations (AI-generated)
+    const pollinationsUrl = getPollinationsUrl(country, city, tripType);
+    console.log('✅ Using Pollinations (AI-generated). Set UNSPLASH_ACCESS_KEY for real photos.');
+    return pollinationsUrl;
   } catch (error) {
-    console.error('❌ Error generating image URL:', error);
-    
-    // Direct fallback
-    const seed = generateLocationSeed(country, city, tripType);
-    return `https://picsum.photos/seed/${seed}/1200/600`;
+    console.error('❌ Error fetching image:', error);
+    return getPollinationsUrl(country, city, tripType);
   }
+}
+
+/**
+ * Final fallback URL when the primary image fails to load in the browser (e.g. CORS).
+ * Used by ImageWithFallback and planning page onError.
+ */
+export function getPicsumFallbackUrl(country: string, city?: string, tripType?: 'trek' | 'bicycle'): string {
+  const seed = generateLocationSeed(country, city, tripType);
+  return `https://picsum.photos/seed/${seed}/1200/600`;
 }
 
 /**
