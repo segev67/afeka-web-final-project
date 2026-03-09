@@ -57,21 +57,27 @@ const authRoutes = ['/login', '/register'];
 // ===========================================
 
 /**
- * Decode JWT without verification (for Edge runtime)
+ * Decode JWT without verification (CLIENT-SIDE ONLY)
  * 
- * DEFENSE EXPLANATION:
- * - Edge runtime can't use jsonwebtoken library
- * - We decode the token to check basic validity
- * - Full verification happens on the auth server
- * - This is "soft" validation as required by the project
+ * CRITICAL DEFENSE POINT (from class):
+ * ⚠️  "You can't verify JWTs in the browser — that must be done on the server"
  * 
- * WHAT WE CHECK:
- * - Token exists
- * - Token has three parts (header.payload.signature)
- * - Token is not expired (checking exp claim)
+ * WHAT WE DO HERE (CLIENT/EDGE):
+ * - Decode the token (extract payload)
+ * - Check expiration (exp claim)
+ * - NO signature verification (would expose secret key!)
+ * 
+ * WHERE FULL VERIFICATION HAPPENS:
+ * - Auth server verifies signature with JWT_SECRET
+ * - This is the ONLY place where signature verification occurs
+ * 
+ * WHY THIS IS SAFE:
+ * - We only use decoded data for routing decisions (not authorization)
+ * - Real authorization happens on server with full verification
+ * - Edge runtime limitation: can't use jsonwebtoken library
  * 
  * @param token - JWT token string
- * @returns Decoded payload or null if invalid
+ * @returns Decoded payload (NOT VERIFIED) or null if malformed
  */
 function decodeToken(token: string): { exp?: number; userId?: string } | null {
   try {
@@ -82,11 +88,12 @@ function decodeToken(token: string): { exp?: number; userId?: string } | null {
       return null;
     }
 
-    // Decode the payload (second part)
-    // Base64Url decode
+    // Decode the payload (second part) - NO VERIFICATION
+    // This is exactly what parseJwt() does in the class example
     const payload = parts[1];
+    const base64Url = payload.replace(/-/g, '+').replace(/_/g, '/');
     const decoded = JSON.parse(
-      Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString()
+      Buffer.from(base64Url, 'base64').toString()
     );
 
     return decoded;
@@ -129,6 +136,8 @@ async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: 
     const authServerUrl = process.env.NEXT_PUBLIC_AUTH_SERVER_URL || 'http://localhost:5001';
     
     console.log('[Proxy] 🔄 Access token expired, attempting silent refresh...');
+    console.log(`[Proxy] Auth server URL: ${authServerUrl}/auth/refresh`);
+    console.log(`[Proxy] Refresh token present: ${!!refreshToken}`);
     
     // Send refresh token as cookie (matching auth server expectations)
     const response = await fetch(`${authServerUrl}/auth/refresh`, {
@@ -140,14 +149,20 @@ async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: 
       credentials: 'include',
     });
 
+    console.log(`[Proxy] Auth server response status: ${response.status}`);
+
     if (!response.ok) {
-      console.log('[Proxy] ❌ Token refresh failed:', response.status);
+      console.log('[Proxy] ❌ Token refresh failed:', response.status, response.statusText);
       return null;
     }
 
     const data = await response.json();
     
-    if (data.accessToken) {
+    // Auth server returns: { success: true, data: { accessToken: "..." } }
+    const accessToken = data.data?.accessToken || data.accessToken;
+    console.log(`[Proxy] Response data has accessToken: ${!!accessToken}`);
+    
+    if (accessToken) {
       console.log('[Proxy] ✅ Token refreshed successfully (silent)');
       
       // Check if server sent a new refresh token (token rotation)
@@ -163,11 +178,12 @@ async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: 
       }
       
       return {
-        accessToken: data.accessToken,
+        accessToken,
         newRefreshToken,
       };
     }
 
+    console.log('[Proxy] ❌ No accessToken in response data');
     return null;
   } catch (error) {
     console.error('[Proxy] ❌ Error refreshing token:', error);
@@ -233,11 +249,17 @@ export async function proxy(request: NextRequest) {
         if (refreshResult) {
           // Success! Set new access token and continue
           const response = NextResponse.next();
+          
+          // IMPORTANT: Cookie maxAge should match JWT expiration (JWT_EXPIRES_IN in auth server)
+          // - JWT has exp field: "I expire at 3:00 PM" (embedded in token)
+          // - Cookie has maxAge: "Browser, delete me at 3:00 PM" (browser storage)
+          // - If they don't match, you get weird bugs (cookie deleted but token valid, or vice versa)
           response.cookies.set('accessToken', refreshResult.accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 60 * 15, // 15 minutes
+            path: '/',
+            maxAge: 60 * 15, // 15 minutes (must match JWT_EXPIRES_IN=15m in auth server)
           });
           
           // Update refresh token if server rotated it
@@ -246,6 +268,7 @@ export async function proxy(request: NextRequest) {
               httpOnly: true,
               secure: process.env.NODE_ENV === 'production',
               sameSite: 'lax',
+              path: '/',
               maxAge: 60 * 60 * 24 * 7, // 7 days
             });
           }
@@ -283,11 +306,14 @@ export async function proxy(request: NextRequest) {
         if (refreshResult) {
           // Success! Set new access token and continue
           const response = NextResponse.next();
+          
+          // IMPORTANT: Cookie maxAge should match JWT expiration (JWT_EXPIRES_IN in auth server)
           response.cookies.set('accessToken', refreshResult.accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 60 * 15, // 15 minutes
+            path: '/',
+            maxAge: 60 * 15, // 15 minutes (must match JWT_EXPIRES_IN=15m in auth server)
           });
           
           // Update refresh token if server rotated it
@@ -296,6 +322,7 @@ export async function proxy(request: NextRequest) {
               httpOnly: true,
               secure: process.env.NODE_ENV === 'production',
               sameSite: 'lax',
+              path: '/',
               maxAge: 60 * 60 * 24 * 7, // 7 days
             });
           }

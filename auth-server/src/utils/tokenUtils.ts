@@ -68,6 +68,28 @@ export interface DecodedToken extends JwtPayload, TokenPayload {}
  * @param payload - User data to include in token
  * @returns Signed JWT access token
  */
+/**
+ * Generate Access Token
+ * 
+ * JWT STRUCTURE (3 parts: HEADER.PAYLOAD.SIGNATURE):
+ * 1. HEADER: {"alg": "HS256", "typ": "JWT"} - Base64 encoded (NOT encrypted, anyone can read)
+ * 2. PAYLOAD: {"userId": "123", "exp": 1709482800} - Base64 encoded (NOT encrypted, anyone can read)
+ * 3. SIGNATURE: HMACSHA256(header + payload, JWT_SECRET) - Signed with secret (prevents tampering)
+ * 
+ * IMPORTANT: JWTs are SIGNED, not ENCRYPTED!
+ * - Anyone can decode and read the payload (it's just Base64)
+ * - But only the server with JWT_SECRET can verify the signature
+ * - If payload is modified, signature won't match → token is rejected
+ * 
+ * DEFENSE EXPLANATION:
+ * - Access tokens are short-lived (15 minutes default) for security
+ * - Used for every API request to prove identity
+ * - Stored in httpOnly cookie (not accessible by JavaScript)
+ * - Uses JWT_SECRET for signing
+ * 
+ * @param payload - User data to include in token
+ * @returns Signed JWT access token
+ */
 export const generateAccessToken = (payload: TokenPayload): string => {
   const secret = process.env.JWT_SECRET;
   
@@ -76,6 +98,7 @@ export const generateAccessToken = (payload: TokenPayload): string => {
   }
 
   // DEFENSE: expiresIn accepts strings like '15m', '1h', '7d' or numbers (seconds)
+  // This expiration is EMBEDDED in the JWT payload (exp field)
   const expiresIn = (process.env.JWT_EXPIRES_IN || '15m') as SignOptions['expiresIn'];
 
   // jwt.sign() creates and signs the token
@@ -90,11 +113,17 @@ export const generateAccessToken = (payload: TokenPayload): string => {
  * - Refresh tokens are long-lived (7 days by default)
  * - Used ONLY to get new access tokens (silent refresh)
  * - Stored in httpOnly cookie (not accessible by JavaScript)
- * - Uses a DIFFERENT secret than access tokens for security
+ * - Uses a DIFFERENT secret (JWT_REFRESH_SECRET) than access tokens
  * 
- * WHY DIFFERENT SECRET?
- * - If access token secret is compromised, refresh tokens remain secure
- * - Defense in depth strategy
+ * WHY TWO DIFFERENT SECRETS?
+ * - JWT_SECRET: Signs access tokens (used for every API call)
+ * - JWT_REFRESH_SECRET: Signs refresh tokens (used only for /auth/refresh)
+ * - Defense in depth: If JWT_SECRET is compromised, attacker still can't forge refresh tokens
+ * - Limits blast radius of a security breach
+ * 
+ * SECURITY ARCHITECTURE:
+ * Access Token (15min, JWT_SECRET) → Fast rotation, frequently used
+ * Refresh Token (7 days, JWT_REFRESH_SECRET) → Rare rotation, rarely used
  * 
  * @param payload - User data to include in token
  * @returns Signed JWT refresh token
@@ -107,6 +136,7 @@ export const generateRefreshToken = (payload: TokenPayload): string => {
   }
 
   // DEFENSE: Refresh tokens are long-lived (7 days default)
+  // This expiration is EMBEDDED in the JWT payload (exp field)
   const expiresIn = (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as SignOptions['expiresIn'];
 
   return jwt.sign(payload, secret, { expiresIn });
