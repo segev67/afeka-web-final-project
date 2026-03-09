@@ -1,6 +1,6 @@
 /**
  * ===========================================
- * HOMEPAGE - AFEKA HIKING TRAILS 2026
+ * HOMEPAGE - ROUTE PLANNER
  * ===========================================
  * 
  * This is the main landing page of the application.
@@ -13,7 +13,7 @@
  * - This page is mostly static content
  * 
  * PROJECT REQUIREMENT:
- * "Homepage bearing the title – Afeka Hiking Trails 2026"
+ * "Homepage bearing the title – Route Planner"
  * "Homepage name - index.html (handled automatically by Next.js)"
  */
 
@@ -58,7 +58,7 @@ export default function HomePage() {
           {/* Main Title - PROJECT REQUIREMENT */}
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 animate-fade-in" style={{animationDelay: '0.1s'}}>
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-emerald-100 to-white">
-              Afeka Hiking Trails 2026
+              Route Planner
             </span>
           </h1>
           

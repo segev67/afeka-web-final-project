@@ -93,6 +93,7 @@ export interface RoutePlan {
   id?: string;
   userId: string;
   username: string; // User's display name
+  name?: string; // Optional: Route name/title
   country: string;
   region?: string;
   city: string;
@@ -102,6 +103,7 @@ export interface RoutePlan {
   totalDistanceKm: number;
   weather?: WeatherData[];
   imageUrl?: string;
+  userNotes?: string; // Optional: User's preferences/custom notes for route planning
   createdAt?: Date;
   approved?: boolean;
 }

@@ -51,6 +51,7 @@ export default function PlanningPage() {
   const [location, setLocation] = useState('');
   const [tripType, setTripType] = useState<TripType>('trek');
   const [duration, setDuration] = useState(1);
+  const [userNotes, setUserNotes] = useState('');
   
   // UI state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -94,7 +95,8 @@ export default function PlanningPage() {
         tripType,
         duration,
         user.id,
-        user.username
+        user.username,
+        userNotes // Pass user's custom notes
       );
 
       if (result.success && result.data) {
@@ -291,6 +293,22 @@ export default function PlanningPage() {
                     ? `Up to 3 circular routes will be generated per day`
                     : 'Plan your multi-day cycling adventure (1-30 days)'}
                 </p>
+              </div>
+
+              {/* User Notes (Optional) */}
+              <div>
+                <label htmlFor="userNotes" className="form-label">
+                  Custom Preferences (Optional)
+                </label>
+                <textarea
+                  id="userNotes"
+                  value={userNotes}
+                  onChange={(e) => setUserNotes(e.target.value)}
+                  className="form-input min-h-[80px] resize-y"
+                  placeholder="e.g., 'I want to see historical sites', 'Prefer routes with cafes', 'Avoid steep hills'..."
+                  disabled={isGenerating}
+                  rows={3}
+                />
               </div>
 
               {/* Submit Button */}

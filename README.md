@@ -1,4 +1,4 @@
-# Afeka Hiking Trails 2026
+# Route Planner
 
 **Final Project - Web Platform Development - Semester A 2026**
 

@@ -60,6 +60,7 @@ import type { TripType, RoutePlan, SavedRoute, ApiResponse } from '@/types';
  * @param durationDays - Trip duration
  * @param userId - Authenticated user ID
  * @param username - User's name
+ * @param userNotes - Optional user preferences/notes
  * @returns Route plan with weather data
  */
 export async function generateRoutePlan(
@@ -67,13 +68,17 @@ export async function generateRoutePlan(
   tripType: TripType,
   durationDays: number,
   userId: string,
-  username: string
+  username: string,
+  userNotes?: string
 ): Promise<ApiResponse<RoutePlan>> {
   try {
     console.log(`🚀 Generating route for ${username}...`);
+    if (userNotes) {
+      console.log(`   📝 User preferences: ${userNotes}`);
+    }
 
-    // Step 1: Generate route with Gemini
-    const routeData = await generateRoute(location, tripType, durationDays);
+    // Step 1: Generate route with Gemini (pass user notes to AI)
+    const routeData = await generateRoute(location, tripType, durationDays, userNotes);
 
     if (!routeData) {
       return {
@@ -100,6 +105,7 @@ export async function generateRoutePlan(
     const routePlan: RoutePlan = {
       userId,
       username, // DEFENSE: Required by Route schema
+      name: routeData.routes[0]?.title || `${routeData.city} ${tripType === 'trek' ? 'Hiking' : 'Cycling'} Adventure`, // Auto-generate name from first route
       country: routeData.country,
       region: routeData.region,
       city: routeData.city,
@@ -116,6 +122,7 @@ export async function generateRoutePlan(
       totalDistanceKm: routeData.totalDistanceKm,
       // weather: undefined,  // CRITICAL: No weather during generation
       imageUrl, // Country-typical image
+      userNotes: userNotes || undefined, // Store user's custom notes
       approved: false,
     };
 

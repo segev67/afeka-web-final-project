@@ -71,6 +71,7 @@ interface IWeather {
 export interface IRoute extends Document {
   userId: string;
   username: string;
+  name?: string; // Optional: User-provided route name or auto-generated title
   country: string;
   region?: string;
   city: string;
@@ -82,6 +83,7 @@ export interface IRoute extends Document {
   imageUrl?: string;
   difficulty?: 'easy' | 'moderate' | 'hard';
   recommendations?: string[];
+  userNotes?: string; // Optional: User's custom notes/preferences for route planning
   createdAt: Date;
   updatedAt: Date;
 }
@@ -270,6 +272,11 @@ const routeSchema = new Schema<IRoute>(
       type: String,
       required: [true, 'Username is required'],
     },
+    name: {
+      type: String,
+      trim: true,
+      // Optional: Auto-generated from first route title or user-provided
+    },
     country: {
       type: String,
       required: [true, 'Country is required'],
@@ -328,6 +335,11 @@ const routeSchema = new Schema<IRoute>(
     recommendations: {
       type: [String],
       default: [],
+    },
+    userNotes: {
+      type: String,
+      trim: true,
+      // Optional: User's custom preferences/notes for AI route planning
     },
   },
   {

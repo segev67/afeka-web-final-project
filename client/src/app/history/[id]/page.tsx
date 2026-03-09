@@ -123,7 +123,7 @@ export default async function RouteDetailPage({
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          {savedRoute.city}, {savedRoute.country}
+          {savedRoute.name || `${savedRoute.city}, ${savedRoute.country}`}
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
           {savedRoute.tripType === 'bicycle' ? '🚴 Cycling Route' : '🥾 Hiking Route'} • 

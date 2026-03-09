@@ -66,11 +66,11 @@ const geistMono = Geist_Mono({
  */
 export const metadata: Metadata = {
   title: {
-    default: "Afeka Hiking Trails 2026",
-    template: "%s | Afeka Hiking Trails",
+    default: "Route Planner",
+    template: "%s | Route Planner",
   },
   description: "Plan your hiking and cycling adventures with AI-powered route suggestions",
-  keywords: ["hiking", "cycling", "trails", "route planning", "outdoor", "adventure"],
+  keywords: ["hiking", "cycling", "trails", "route planning", "outdoor", "adventure", "AI"],
 };
 
 // ===========================================

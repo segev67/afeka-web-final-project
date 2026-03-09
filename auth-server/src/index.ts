@@ -115,11 +115,16 @@ app.use(cookieParser());
 // REQUEST LOGGING MIDDLEWARE
 // ===========================================
 
-// Log all incoming requests for debugging
+// Log all incoming requests for debugging (without sensitive data)
 app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`\n📥 ${req.method} ${req.path}`);
+  // SECURITY: Don't log request body as it may contain passwords or sensitive data
   if (req.body && Object.keys(req.body).length > 0) {
-    console.log(`   Body: ${JSON.stringify(req.body)}`);
+    const sanitizedBody = { ...req.body };
+    // Remove sensitive fields
+    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
+    if (sanitizedBody.email) sanitizedBody.email = '[REDACTED]';
+    console.log(`   Body (sanitized): ${JSON.stringify(sanitizedBody)}`);
   }
   next();
 });

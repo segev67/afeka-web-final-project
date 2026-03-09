@@ -73,7 +73,8 @@ const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 function createRoutePrompt(
   location: string,
   tripType: TripType,
-  durationDays: number
+  durationDays: number,
+  userNotes?: string
 ): string {
   const isBicycle = tripType === 'bicycle';
   const dailyDistanceMin = isBicycle ? 30 : 5;
@@ -90,10 +91,19 @@ COMPACT OUTPUT (${durationDays} days): To avoid truncation, use SHORT format so 
 `
     : '';
 
+  const userPreferences = userNotes
+    ? `
+USER'S SPECIAL PREFERENCES:
+${userNotes}
+
+Please incorporate these preferences into your route planning.
+`
+    : '';
+
   return `You are an EXPERT LOCAL ${isBicycle ? 'CYCLING' : 'HIKING'} GUIDE with intimate knowledge of ${location}.
 
 Your task: Create EXACTLY ${durationDays} ${isBicycle ? 'days' : 'day(s)'} of realistic ${tripType} route(s) that a human can actually follow.
-${compactNote}
+${compactNote}${userPreferences}
 CRITICAL REQUIREMENTS:
 1. MUST generate EXACTLY ${durationDays} routes (one per day) - NO MORE, NO LESS
 2. Use REAL place names: actual street names, trail names, landmarks, cities
@@ -276,13 +286,17 @@ function sanitizeRecoveredRouteData(data: LLMRouteResponse): LLMRouteResponse {
 export async function generateRoute(
   location: string,
   tripType: TripType,
-  durationDays: number
+  durationDays: number,
+  userNotes?: string
 ): Promise<LLMRouteResponse | null> {
   try {
     console.log(`🤖 Generating ${tripType} route for ${location} (${durationDays} days)...`);
+    if (userNotes) {
+      console.log(`   📝 User preferences: ${userNotes}`);
+    }
 
-    // Create prompt
-    const prompt = createRoutePrompt(location, tripType, durationDays);
+    // Create prompt (include user notes if provided)
+    const prompt = createRoutePrompt(location, tripType, durationDays, userNotes);
 
     // Call Gemini API
     // DEFENSE: generationConfig controls output format and quality

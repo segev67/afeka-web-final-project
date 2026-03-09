@@ -58,14 +58,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
   
   console.log('\n🔐 [REGISTER] Request received');
-  console.log(`   Body: ${JSON.stringify(req.body)}`);
   
   try {
     const { username, email, password } = req.body;
 
     console.log('🔐 [REGISTER] Attempting registration...');
     console.log(`   Username: ${username}`);
-    console.log(`   Email: ${email}`);
+    // SECURITY: Don't log email or password
 
     // Step 1: Validate required fields
     if (!username || !email || !password) {
@@ -84,7 +83,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     
     if (existingUser) {
-      console.log(`⚠️  [REGISTER] User already exists: ${email}`);
+      console.log(`⚠️  [REGISTER] User already exists (email hidden for security)`);
       res.status(409).json({ // 409 Conflict
         success: false,
         message: 'User with this email already exists',
@@ -95,7 +94,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     // Step 3: Create new user
     // DEFENSE: Password is automatically hashed by the pre-save hook in User model
     // We NEVER store plain text passwords
-    console.log('🔒 [REGISTER] Hashing password with bcrypt...');
+    console.log('🔒 [REGISTER] Creating user with hashed password...');
     const user = await User.create({
       username,
       email,
@@ -186,7 +185,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
 
     console.log('🔑 [LOGIN] Attempting login...');
-    console.log(`   Email: ${email}`);
+    // SECURITY: Don't log email or password
 
     // Step 1: Validate required fields
     if (!email || !password) {
@@ -208,7 +207,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // DEFENSE: We use the same error message for both cases
     // This prevents attackers from knowing if an email exists in our system
     if (!user) {
-      console.log(`⚠️  [LOGIN] User not found: ${email}`);
+      console.log(`⚠️  [LOGIN] User not found (email hidden for security)`);
       res.status(401).json({
         success: false,
         message: 'Invalid email or password', // Generic message
@@ -225,7 +224,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
-      console.log(`❌ [LOGIN] Invalid password for ${email}`);
+      console.log(`❌ [LOGIN] Invalid password (user hidden for security)`);
       res.status(401).json({
         success: false,
         message: 'Invalid email or password', // Same generic message

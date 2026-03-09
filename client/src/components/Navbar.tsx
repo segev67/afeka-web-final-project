@@ -119,8 +119,8 @@ export default function Navbar() {
                   />
                 </svg>
               </div>
-              <span className="hidden sm:inline bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-extrabold">Afeka Hiking Trails</span>
-              <span className="sm:hidden bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-extrabold">AHT</span>
+              <span className="hidden sm:inline bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-extrabold">Route Planner</span>
+              <span className="sm:hidden bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-extrabold">RP</span>
             </Link>
           </div>
 

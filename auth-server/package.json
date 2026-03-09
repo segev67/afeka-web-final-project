@@ -1,7 +1,7 @@
 {
   "name": "auth-server",
   "version": "1.0.0",
-  "description": "Express authentication server for Afeka Hiking Trails 2026",
+  "description": "Express authentication server for Route Planner",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
