@@ -26,70 +26,80 @@ A comprehensive web application for planning hiking and cycling routes using AI-
 2. [Architecture](#architecture)
 3. [Technologies Used](#technologies-used)
 4. [Key Features](#key-features)
-5. [Project Requirements Compliance](#project-requirements-compliance)
-6. [Installation Guide](#installation-guide)
-7. [Environment Configuration](#environment-configuration)
-8. [Running the Application](#running-the-application)
-9. [Project Structure](#project-structure)
-10. [API Documentation](#api-documentation)
-11. [Known Limitations](#known-limitations)
-12. [Future Enhancements](#future-enhancements)
+5. [Installation Guide](#installation-guide)
+6. [Environment Configuration](#environment-configuration)
+7. [Running the Application](#running-the-application)
+8. [Project Structure](#project-structure)
+9. [API Documentation](#api-documentation)
+10. [Security Implementation](#security-implementation)
+11. [Known Issues](#known-issues)
 
 ---
 
 ## 🎯 Project Overview
 
-Afeka Hiking Trails 2026 is a full-stack web application that enables users to plan personalized hiking and cycling routes using artificial intelligence. The system generates realistic routes based on user preferences, displays them on interactive maps with actual road/trail paths, and provides real-time weather forecasts for upcoming trips.
+Route Planner is a full-stack web application that enables users to plan personalized hiking and cycling routes using artificial intelligence. The system generates realistic routes based on user preferences, displays them on interactive maps with actual road/trail paths, and provides real-time weather forecasts for upcoming trips.
 
 ### Core Functionality
 
 1. **AI-Powered Route Planning**: Generate custom routes using Google Gemini AI
-2. **Realistic Path Rendering**: Routes follow actual roads/trails using OSRM routing
+2. **Realistic Path Rendering**: Routes follow actual roads/trails using OSRM routing engine and Leaflet.js
 3. **Weather Integration**: 3-day forecasts from OpenWeatherMap API
-4. **Route Management**: Save and retrieve routes from MongoDB database
-5. **Secure Authentication**: JWT-based authentication with Express.js
+4. **Route Management**: Save and retrieve routes with personalized notes from MongoDB database
+5. **Secure Authentication**: JWT-based authentication with silent token refresh
 
 ---
 
 ## 🏗️ Architecture
 
-The application follows a **two-server architecture** as required by the project specifications:
+The application follows a **two-server architecture**:
 
-### Server 1: Express.js Authentication Server (Port 5001)
+### Server 1: Express.js Authentication Server (Port 4000)
 
 **Purpose**: User authentication, authorization, and JWT token management
 
 **Responsibilities**:
-- User registration with bcrypt password hashing (salt encryption)
+- User registration with bcrypt password hashing (salt rounds: 10)
 - User login with JWT token generation
-- Token refresh mechanism (silent refresh every 24 hours)
+- Silent token refresh mechanism (15-minute access tokens with automatic renewal)
 - Token verification and validation
+- Secure httpOnly cookie management
+
+**Key Security Features**:
+- HMAC-SHA256 JWT signing with separate secrets for access and refresh tokens
+- Access tokens: 15 minutes (short-lived for security)
+- Refresh tokens: 7 days (long-lived for convenience)
+- Token rotation on refresh (one-time use refresh tokens)
+- Password hashing with bcrypt (10 salt rounds)
 
 **Technologies**:
 - Node.js + Express.js
 - MongoDB + Mongoose (user data storage)
-- bcrypt (password hashing with salt)
+- bcrypt (password hashing)
 - jsonwebtoken (JWT generation and verification)
 - cookie-parser (HTTP-only cookie management)
+- CORS (cross-origin resource sharing)
 
 ### Server 2: Next.js Application Server (Port 3000)
 
 **Purpose**: Main application interface and business logic
 
 **Responsibilities**:
-- User interface (React components)
-- Route planning with AI integration
-- Map visualization with Leaflet.js
-- Route storage and retrieval
-- Weather API integration
-- Middleware authorization (soft validation)
+- User interface (React components with TypeScript)
+- Route planning with AI integration (Google Gemini)
+- Interactive map visualization (Leaflet.js + OSRM)
+- Route storage and retrieval (MongoDB)
+- Weather API integration (OpenWeatherMap)
+- Authentication middleware (JWT validation and silent refresh)
+- Image generation with fallback cascade (Unsplash → Pollinations → Picsum)
 
 **Technologies**:
-- Next.js 15 (App Router)
+- Next.js 15 (App Router, Edge Runtime)
 - React 19
 - TypeScript
-- Tailwind CSS
-- Leaflet.js + Leaflet Routing Machine
+- Tailwind CSS (styling)
+- Leaflet.js + Leaflet Routing Machine (maps)
+- OSRM plugin (realistic routing)
 
 ### Database: MongoDB
 
@@ -97,7 +107,7 @@ The application follows a **two-server architecture** as required by the project
 
 **Collections**:
 - `users`: User accounts (username, email, hashed passwords)
-- `routes`: Saved hiking/cycling routes with full details
+- `routes`: Saved hiking/cycling routes with full details, weather data, and user notes
 
 ---
 
@@ -119,12 +129,14 @@ The application follows a **two-server architecture** as required by the project
 - **Tailwind CSS** - Utility-first styling
 
 ### APIs & Services
-- **Google Gemini AI** - Route generation (LLM)
-- **Leaflet.js** - Interactive maps
-- **Leaflet Routing Machine** - Realistic route rendering
-- **OSRM** - Open Source Routing Machine (realistic paths)
-- **OpenWeatherMap API** - Weather forecasts
-- **Pollinations.ai** - AI image generation
+- **Google Gemini AI** - Route generation with natural language processing
+- **Leaflet.js** - Interactive maps with OpenStreetMap tiles
+- **Leaflet Routing Machine** - Route visualization with turn-by-turn directions
+- **OSRM** - Open Source Routing Machine (realistic path calculation)
+- **OpenWeatherMap API** - Real-time weather forecasts
+- **Unsplash API** - High-quality location images (primary)
+- **Pollinations.ai** - AI-generated images (fallback)
+- **Picsum.photos** - Placeholder images (final fallback)
 
 ### Development Tools
 - **ESLint** - Code linting
@@ -135,23 +147,32 @@ The application follows a **two-server architecture** as required by the project
 
 ## ✨ Key Features
 
-### 1. User Authentication
-- Secure registration with password hashing (bcrypt + salt)
-- JWT-based authentication with HTTP-only cookies
-- Silent token refresh (24-hour access tokens, 7-day refresh tokens)
-- Automatic session management
+### 1. User Authentication & Security
+- **Registration**: Secure password hashing with bcrypt (10 salt rounds)
+- **Login**: JWT-based authentication with httpOnly cookies
+- **Token Architecture**:
+  - Access tokens: 15 minutes (HMAC-SHA256 with JWT_SECRET)
+  - Refresh tokens: 7 days (HMAC-SHA256 with JWT_REFRESH_SECRET)
+  - Separate secrets for defense in depth
+- **Silent Token Refresh**: Automatic token renewal without user interaction
+- **Token Rotation**: One-time use refresh tokens (new refresh token issued on each refresh)
+- **Secure Cookies**: httpOnly, sameSite=lax, secure in production
+- **Client-side JWT Decoding**: Next.js Edge middleware decodes tokens (no signature verification on client)
+- **Server-side JWT Verification**: Auth server fully verifies signatures with secrets
 
 ### 2. AI-Powered Route Planning
 - **Input Parameters**:
   - Location (Country/Region/City)
   - Trip type (Hiking/Cycling)
-  - Duration (number of days)
+  - Duration (1-30 days)
+  - Optional user notes (custom preferences injected into AI prompt)
 
 - **AI Generation**:
-  - Routes generated by Google Gemini AI
+  - Routes generated by Google Gemini AI (Gemini 1.5 Flash)
   - Real place names and landmarks
   - Narrative turn-by-turn directions
   - Distance calculations per day
+  - Auto-generated route titles
 
 - **Route Specifications**:
   - **Cycling**: 30-70 km per day, linear city-to-city routes
@@ -178,55 +199,18 @@ The application follows a **two-server architecture** as required by the project
   - Wind speed
 
 ### 5. Route Management
-- **Save Routes**: Store generated routes to database
-- **Route History**: View all previously saved routes
-- **Route Details**: Full route information with updated weather
-- **Interactive Cards**: Click to view detailed route information
+- **Save Routes**: Store generated routes to MongoDB with auto-generated titles
+- **Route History**: View all previously saved routes with filter options
+- **Filtering**: Filter by trip type (all/trek/bicycle) and sort by various criteria
+- **Route Details**: Full route information with fresh weather data on each view
+- **Interactive Cards**: Click to view detailed route information with maps
 
-### 6. AI-Generated Images
-- **Location-Specific**: Images characteristic of the country/region
-- **AI Generation**: Pollinations.ai for generative images
-- **Automatic Fallback**: Lorem Picsum if AI generation fails
+### 6. AI-Generated Images with Smart Fallback
+- **Primary Source**: Unsplash API for high-quality, location-specific photographs
+- **AI Fallback**: Pollinations.ai for AI-generated images if Unsplash fails
+- **Final Fallback**: Picsum.photos for deterministic placeholder images
 - **Deterministic**: Same location = same image (consistent experience)
-
----
-
-## 📝 Project Requirements Compliance
-
-This section maps the implementation to the official project requirements:
-
-### Core Architecture Requirements ✅
-
-| Requirement | Implementation | File Reference |
-|-------------|----------------|----------------|
-| Two servers (Express + Next.js) | ✅ Express auth server + Next.js app | `auth-server/`, `client/` |
-| User authentication with salt | ✅ bcrypt with salt rounds | `auth-server/src/controllers/authController.ts` |
-| JWT with submitter names | ✅ Token includes username | `auth-server/src/utils/tokenUtils.ts` |
-| Silent token refresh (once/day) | ✅ 24-hour access tokens | `auth-server/.env`, `client/src/proxy.ts` |
-| Middleware authorization | ✅ Next.js proxy (soft validation) | `client/src/proxy.ts` |
-| Homepage: "Afeka Hiking Trails 2026" | ✅ Correct title | `client/src/app/page.tsx` |
-
-### Page Requirements ✅
-
-| Requirement | Implementation | File Reference |
-|-------------|----------------|----------------|
-| Route Planning page with maps | ✅ Planning page with Leaflet | `client/src/app/planning/page.tsx` |
-| LLM-generated routes | ✅ Google Gemini AI | `client/src/lib/gemini.ts` |
-| Routes History page | ✅ Database retrieval | `client/src/app/history/page.tsx` |
-| User inputs only (location, type, days) | ✅ Form with 3 inputs | `client/src/app/planning/page.tsx` |
-
-### Output Specifications ✅
-
-| Requirement | Implementation | File Reference |
-|-------------|----------------|----------------|
-| Bicycle: 30-70 km per day | ✅ In AI prompt | `client/src/lib/gemini.ts:79-80` |
-| Trek: 5-10 km per day | ✅ In AI prompt | `client/src/lib/gemini.ts:79-80` |
-| Realistic routes (not straight lines) | ✅ OSRM routing | `client/src/components/RouteMap.tsx:251-289` |
-| 3-day weather forecast | ✅ OpenWeatherMap API | `client/src/lib/weather.ts` |
-| Country-typical image (generative) | ✅ AI-generated images | `client/src/lib/images.ts` |
-| Approve without weather forecast | ✅ Weather only in history | `client/src/app/planning/page.tsx` |
-| Save to database | ✅ MongoDB with Mongoose | `client/src/app/planning/actions.ts` |
-| Retrieve with updated weather | ✅ Fresh forecast on view | `client/src/app/history/[id]/page.tsx` |
+- **Location-Specific**: Images characteristic of the country/region
 
 ---
 
@@ -270,7 +254,7 @@ Create `auth-server/.env`:
 
 ```env
 # Server Configuration
-PORT=5001
+PORT=4000
 NODE_ENV=development
 
 # MongoDB Connection
@@ -286,8 +270,8 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_REFRESH_SECRET=your-refresh-token-secret-also-change-this
 
 # JWT Expiration
-# Access token lasts 24 hours (matches "refresh once a day" requirement)
-JWT_EXPIRES_IN=24h
+# Access token: 15 minutes (security), Refresh token: 7 days (convenience)
+JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
 # Client URL (for CORS)
@@ -300,7 +284,7 @@ Create `client/.env.local`:
 
 ```env
 # Auth Server URL
-NEXT_PUBLIC_AUTH_SERVER_URL=http://localhost:5001
+NEXT_PUBLIC_AUTH_SERVER_URL=http://localhost:4000
 
 # Google Gemini AI API Key
 # Get from: https://makersuite.google.com/app/apikey
@@ -310,6 +294,10 @@ GEMINI_API_KEY=your-gemini-api-key-here
 # Get from: https://openweathermap.org/api
 OPENWEATHERMAP_API_KEY=your-openweathermap-api-key-here
 
+# Unsplash API Key (optional, for high-quality images)
+# Get from: https://unsplash.com/developers
+UNSPLASH_ACCESS_KEY=your-unsplash-key-here
+
 # MongoDB Connection (for route storage)
 MONGODB_URI=mongodb://localhost:27017/hiking-routes
 # OR MongoDB Atlas:
@@ -318,20 +306,27 @@ MONGODB_URI=mongodb://localhost:27017/hiking-routes
 
 ### Obtaining API Keys
 
-#### 1. Google Gemini API Key
+#### 1. Google Gemini API Key (Required)
 1. Visit https://makersuite.google.com/app/apikey
 2. Sign in with Google account
 3. Click "Create API Key"
 4. Copy the key to `GEMINI_API_KEY`
 
-#### 2. OpenWeatherMap API Key
+#### 2. OpenWeatherMap API Key (Required)
 1. Visit https://openweathermap.org/api
 2. Sign up for free account
 3. Go to "API keys" section
 4. Generate a new key
 5. Copy to `OPENWEATHERMAP_API_KEY`
 
-#### 3. MongoDB Setup
+#### 3. Unsplash API Key (Optional, Recommended)
+1. Visit https://unsplash.com/developers
+2. Create a developer account
+3. Create a new application
+4. Copy the Access Key to `UNSPLASH_ACCESS_KEY`
+5. Note: Without this, app falls back to Pollinations.ai and Picsum
+
+#### 4. MongoDB Setup
 
 **Option A: Local MongoDB**
 ```bash
@@ -383,7 +378,7 @@ Expected output:
 ```
 🚀 Auth Server Starting...
 ✅ MongoDB connected successfully
-🔒 Auth Server running on port 5001
+🔒 Auth Server running on port 4000
 ```
 
 ### Step 3: Start the Next.js Client
@@ -541,7 +536,7 @@ Authenticate user and receive JWT tokens
 ```
 
 **Cookies Set:**
-- `accessToken`: HTTP-only, 24-hour expiration
+- `accessToken`: HTTP-only, 15-minute expiration
 - `refreshToken`: HTTP-only, 7-day expiration
 
 #### POST `/auth/refresh`
@@ -593,9 +588,10 @@ Generate a new route using AI
 **Parameters:**
 - `location`: string
 - `tripType`: "trek" | "bicycle"
-- `durationDays`: number
+- `durationDays`: number (1-30)
+- `userNotes`: string (optional custom preferences)
 
-**Returns:** RouteGenerationResult with routes, weather, and image
+**Returns:** RouteGenerationResult with routes, weather, image, and auto-generated title
 
 #### `saveRoute(routePlan, userId, username)`
 Save a generated route to database
@@ -604,32 +600,105 @@ Save a generated route to database
 
 ---
 
-## ⚠️ Known Limitations
+## 🔐 Security Implementation
 
-### 1. AI Image Generation
-- **Issue**: Pollinations.ai images may load slowly or fail to load
-- **Mitigation**: Automatic fallback to Lorem Picsum placeholder images
+### JWT Architecture
+
+**Token Types:**
+1. **Access Token** (15 minutes)
+   - Used for API authentication
+   - Signed with `JWT_SECRET` using HMAC-SHA256
+   - Stored in httpOnly cookie
+   - Short-lived for security
+
+2. **Refresh Token** (7 days)
+   - Used only to obtain new access tokens
+   - Signed with `JWT_REFRESH_SECRET` (separate secret for defense in depth)
+   - Stored in httpOnly cookie
+   - Rotated on each use (one-time use tokens)
+
+### JWT Structure
+
+```
+HEADER.PAYLOAD.SIGNATURE
+
+Header:  {"alg":"HS256","typ":"JWT"}         (Base64 encoded)
+Payload: {"userId":"123","exp":1709483400}   (Base64 encoded)
+Signature: HMACSHA256(header+payload, SECRET) (Cryptographic signature)
+```
+
+**Important**: JWTs are **SIGNED**, not encrypted. Anyone can decode and read the payload (it's Base64), but only the server with the secret can verify the signature and create valid tokens.
+
+### Authentication Flow
+
+1. **Login**:
+   - User submits credentials
+   - Server validates with bcrypt
+   - Generates access + refresh tokens
+   - Sets both as httpOnly cookies
+
+2. **API Request**:
+   - Browser automatically sends cookies
+   - Next.js middleware decodes access token (client-side, no verification)
+   - Checks expiration
+   - Allows/denies request
+
+3. **Silent Refresh** (every 15 minutes):
+   - Access token expires
+   - Middleware detects expiration
+   - Calls auth server `/auth/refresh` with refresh token
+   - Auth server **verifies** refresh token signature (server-side)
+   - Issues new access + refresh tokens
+   - User stays logged in seamlessly
+
+### Why Two Different Secrets?
+
+**Defense in Depth Strategy:**
+- If `JWT_SECRET` is compromised → Attacker can forge access tokens
+- BUT attacker still cannot forge refresh tokens (need `JWT_REFRESH_SECRET`)
+- Limits the blast radius of a security breach
+- Access tokens rotate every 15 minutes, refresh tokens every 7 days
+
+### Security Best Practices Implemented
+
+✅ **Password Hashing**: bcrypt with 10 salt rounds  
+✅ **httpOnly Cookies**: JavaScript cannot access tokens (XSS protection)  
+✅ **sameSite Cookies**: CSRF protection  
+✅ **Secure Cookies**: HTTPS only in production  
+✅ **Token Rotation**: One-time use refresh tokens  
+✅ **Short-lived Access Tokens**: 15 minutes (minimize exposure)  
+✅ **Separate Secrets**: Access and refresh tokens use different signing keys  
+✅ **Client-side Decoding Only**: No signature verification on client (Edge runtime)  
+✅ **Server-side Verification**: Full JWT signature verification on auth server  
+
+---
+
+## ⚠️ Known Issues
+
+### 1. AI Image Loading
+- **Issue**: External image APIs (Unsplash, Pollinations.ai) may load slowly or fail
+- **Mitigation**: 3-tier fallback system (Unsplash → Pollinations → Picsum)
 - **Impact**: Minimal - users always see an image
 
-### 2. OSRM Routing Service
-- **Issue**: May occasionally fail for very remote locations
-- **Mitigation**: Waypoints remain visible on map even if routing line fails
-- **Impact**: Low - route information still complete
+### 2. OSRM Routing for Remote Locations
+- **Issue**: OSRM may not have complete data for very remote hiking trails
+- **Mitigation**: Waypoints remain visible on map even if routing line fails; route text information is always complete
+- **Impact**: Low - primarily affects visual route line
 
-### 3. Gemini AI Route Generation
-- **Issue**: Occasionally generates incorrect day count despite explicit prompts
-- **Mitigation**: Validation logic filters invalid routes, retry mechanism
-- **Impact**: Low - users can regenerate if needed
+### 3. Gemini AI Response Variability
+- **Issue**: AI may occasionally generate routes with incorrect day count or format
+- **Mitigation**: Validation logic filters invalid responses; users can regenerate routes
+- **Impact**: Low - retry mechanism handles edge cases
 
-### 4. Token Refresh Edge Cases
-- **Issue**: Edge runtime limitations prevent full server-to-server refresh
-- **Mitigation**: 24-hour tokens reduce need for frequent refresh
-- **Impact**: Minimal - users stay logged in for full day
+### 4. Weather API Rate Limits
+- **Issue**: OpenWeatherMap free tier has request limits
+- **Mitigation**: Fetches weather only on demand (not pre-cached)
+- **Impact**: Minimal - sufficient for normal usage patterns
 
-### 5. Weather API Rate Limits
-- **Issue**: OpenWeatherMap free tier has rate limits
-- **Mitigation**: Efficient caching, minimal API calls
-- **Impact**: Low - sufficient for normal usage
+### 5. Map Marker Visibility
+- **Issue**: Default Leaflet/Routing Machine markers may interfere with custom numbered waypoints
+- **Mitigation**: CSS rules to hide unwanted markers while preserving custom ones
+- **Impact**: Resolved - custom markers display correctly
 
 ---
 
