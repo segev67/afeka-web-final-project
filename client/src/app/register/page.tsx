@@ -17,7 +17,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { register } from "@/lib/auth";
+import { registerAction } from "@/app/auth/actions";
 
 // ===========================================
 // REGISTRATION PAGE COMPONENT
@@ -39,9 +39,10 @@ export default function RegisterPage() {
    * 
    * DEFENSE EXPLANATION:
    * 1. Validate passwords match (client-side)
-   * 2. Send registration request to auth server
-   * 3. Auth server hashes password with bcrypt + salt
-   * 4. On success, user is logged in and redirected
+   * 2. Send registration request via Server Action
+   * 3. Server Action sets httpOnly cookies securely
+   * 4. Auth server hashes password with bcrypt + salt
+   * 5. On success, user is logged in and redirected
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +57,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const result = await register(username, email, password);
+      const result = await registerAction(username, email, password);
 
       if (result.success) {
         // Redirect to home page after successful registration

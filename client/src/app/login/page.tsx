@@ -18,7 +18,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { login } from "@/lib/auth";
+import { loginAction } from "@/app/auth/actions";
 
 // ===========================================
 // LOGIN PAGE COMPONENT
@@ -42,7 +42,8 @@ export default function LoginPage() {
    * 
    * DEFENSE EXPLANATION:
    * - preventDefault() stops form from submitting traditionally
-   * - We use fetch API to send credentials to auth server
+   * - We use Server Action to handle login on the server
+   * - Server Action can set httpOnly cookies (more secure)
    * - On success, token is stored and user is redirected
    */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,7 +52,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await loginAction(email, password);
 
       if (result.success) {
         // Redirect to callback URL or home

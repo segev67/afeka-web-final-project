@@ -60,24 +60,19 @@ const ACCESS_TOKEN_COOKIE = 'accessToken';
  * Store Access Token
  * 
  * DEFENSE EXPLANATION:
- * - In production, the proxy middleware handles cookie management
- * - This function is kept for backwards compatibility but doesn't set cookies
- * - Access tokens are managed server-side (httpOnly cookies in production)
- * - Only used in development for client-side token storage
+ * - DEPRECATED: Use Server Actions (loginAction/registerAction) instead
+ * - This function is kept for backwards compatibility with other parts of the codebase
+ * - Server Actions set httpOnly cookies which are more secure
+ * - Only used for legacy client-side operations
  * 
  * @param token - JWT access token
  */
 export const setAccessToken = (token: string): void => {
-  // In production, proxy middleware handles cookies (httpOnly, sameSite: 'none')
-  // Don't set cookies client-side to avoid conflicts
-  if (process.env.NODE_ENV !== 'production') {
-    Cookies.set(ACCESS_TOKEN_COOKIE, token, {
-      expires: 1 / 96, // 15 minutes (1 day / 96)
-      sameSite: 'strict',
-      secure: false,
-    });
-  }
-  // In production: Do nothing - proxy middleware handles it
+  Cookies.set(ACCESS_TOKEN_COOKIE, token, {
+    expires: 1 / 96, // 15 minutes (1 day / 96)
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+    secure: process.env.NODE_ENV === 'production',
+  });
 };
 
 /**
