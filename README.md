@@ -63,7 +63,7 @@ The application follows a **two-server architecture**:
 - User login with JWT token generation
 - Silent token refresh mechanism (15-minute access tokens with automatic renewal)
 - Token verification and validation
-- Secure httpOnly cookie management
+- Secure httpOnly cookie management for refresh tokens
 
 **Key Security Features**:
 - HMAC-SHA256 JWT signing with separate secrets for access and refresh tokens
@@ -71,6 +71,7 @@ The application follows a **two-server architecture**:
 - Refresh tokens: 7 days (long-lived for convenience)
 - Token rotation on refresh (one-time use refresh tokens)
 - Password hashing with bcrypt (10 salt rounds)
+- HttpOnly cookies with sameSite protection (CSRF prevention)
 
 **Technologies**:
 - Node.js + Express.js
@@ -86,11 +87,12 @@ The application follows a **two-server architecture**:
 
 **Responsibilities**:
 - User interface (React components with TypeScript)
+- Server Actions for authentication (login, register, token management)
 - Route planning with AI integration (Google Gemini)
 - Interactive map visualization (Leaflet.js + OSRM)
 - Route storage and retrieval (MongoDB)
 - Weather API integration (OpenWeatherMap)
-- Authentication middleware (JWT validation and silent refresh)
+- Authentication middleware (JWT validation and silent refresh via Proxy)
 - Image generation with fallback cascade (Unsplash → Pollinations → Picsum)
 
 **Technologies**:
@@ -150,14 +152,18 @@ The application follows a **two-server architecture**:
 ### 1. User Authentication & Security
 - **Registration**: Secure password hashing with bcrypt (10 salt rounds)
 - **Login**: JWT-based authentication with httpOnly cookies
+- **Server Actions**: Next.js Server Actions handle login/register (server-side cookie setting)
 - **Token Architecture**:
   - Access tokens: 15 minutes (HMAC-SHA256 with JWT_SECRET)
   - Refresh tokens: 7 days (HMAC-SHA256 with JWT_REFRESH_SECRET)
   - Separate secrets for defense in depth
-- **Silent Token Refresh**: Automatic token renewal without user interaction
-- **Token Rotation**: One-time use refresh tokens (new refresh token issued on each refresh)
-- **Secure Cookies**: httpOnly, sameSite=lax, secure in production
-- **Client-side JWT Decoding**: Next.js Edge middleware decodes tokens (no signature verification on client)
+- **Silent Token Refresh**: Automatic token renewal via Proxy middleware (single refresh interceptor)
+- **Token Rotation**: New refresh token issued on each refresh
+- **Secure Cookies**: 
+  - httpOnly (JavaScript cannot access - XSS protection)
+  - sameSite=none in production (cross-domain support for Vercel)
+  - secure in production (HTTPS only)
+- **Client-side JWT Decoding**: Next.js Proxy middleware decodes tokens (no signature verification on client)
 - **Server-side JWT Verification**: Auth server fully verifies signatures with secrets
 
 ### 2. AI-Powered Route Planning
@@ -278,6 +284,11 @@ JWT_REFRESH_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:3000
 ```
 
+**Security Note**: Generate strong random secrets for production:
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
 ### Client Environment Variables
 
 Create `client/.env.local`:
@@ -285,6 +296,11 @@ Create `client/.env.local`:
 ```env
 # Auth Server URL
 NEXT_PUBLIC_AUTH_SERVER_URL=http://localhost:4000
+
+# JWT Expiration (OPTIONAL - defaults to 15m and 7d if not set)
+# Only needed if you want different expiration times than the defaults
+# JWT_EXPIRES_IN=15m
+# JWT_REFRESH_EXPIRES_IN=7d
 
 # Google Gemini AI API Key
 # Get from: https://makersuite.google.com/app/apikey
@@ -433,6 +449,8 @@ afeka_webdevelopment_26a_final_proj/
 │   ├── src/
 │   │   ├── app/                    # App Router pages
 │   │   │   ├── page.tsx            # Homepage
+│   │   │   ├── auth/
+│   │   │   │   └── actions.ts      # Auth Server Actions (NEW)
 │   │   │   ├── planning/
 │   │   │   │   ├── page.tsx        # Route planning page
 │   │   │   │   └── actions.ts      # Server actions
@@ -582,6 +600,44 @@ Logout user and clear tokens
 
 ### Client Server Actions
 
+#### Authentication Actions (`client/src/app/auth/actions.ts`)
+
+##### `loginAction(email, password)`
+Login user and set httpOnly cookies (Server Action)
+
+**Parameters:**
+- `email`: string
+- `password`: string
+
+**Returns:** 
+```typescript
+{
+  success: boolean,
+  message: string,
+  data?: {
+    user: { id, username, email },
+    accessToken: string
+  }
+}
+```
+
+**Side Effects:** Sets httpOnly cookies for accessToken and refreshToken
+
+##### `registerAction(username, email, password)`
+Register new user and set httpOnly cookies (Server Action)
+
+**Returns:** Same as loginAction
+
+##### `getCurrentUser()`
+Get current authenticated user (Server Action)
+
+**Returns:** `User | null` by reading httpOnly cookies server-side
+
+##### `logoutAction()`
+Logout user and clear cookies (Server Action)
+
+#### Route Planning Actions (`client/src/app/planning/actions.ts`)
+
 #### `generateRoutePlan(formData)`
 Generate a new route using AI
 
@@ -631,25 +687,50 @@ Signature: HMACSHA256(header+payload, SECRET) (Cryptographic signature)
 
 ### Authentication Flow
 
-1. **Login**:
-   - User submits credentials
-   - Server validates with bcrypt
-   - Generates access + refresh tokens
-   - Sets both as httpOnly cookies
+**Login Flow:**
+1. **User Login**:
+   - User submits credentials on login page
+   - `loginAction()` Server Action calls auth server
+   - Auth server validates with bcrypt
+   - Auth server generates access + refresh tokens
+   - Auth server sets `refreshToken` as httpOnly cookie
+   - `loginAction()` receives `accessToken` in response
+   - `loginAction()` sets `accessToken` as httpOnly cookie
+   - User redirected to homepage
 
-2. **API Request**:
-   - Browser automatically sends cookies
-   - Next.js middleware decodes access token (client-side, no verification)
-   - Checks expiration
-   - Allows/denies request
+2. **Protected Route Access**:
+   - User navigates to protected route (e.g., /planning)
+   - Next.js Proxy middleware intercepts request
+   - Proxy reads `accessToken` from httpOnly cookie (server-side)
+   - Proxy decodes token and checks expiration
+   - If valid → Allow access
+   - If expired → Trigger silent refresh (see below)
 
-3. **Silent Refresh** (every 15 minutes):
+3. **Silent Refresh** (automatic, every ~15 minutes):
    - Access token expires
-   - Middleware detects expiration
-   - Calls auth server `/auth/refresh` with refresh token
+   - Proxy middleware detects expiration
+   - Proxy calls auth server `/auth/refresh` with `refreshToken` cookie
    - Auth server **verifies** refresh token signature (server-side)
-   - Issues new access + refresh tokens
-   - User stays logged in seamlessly
+   - Auth server generates new access + refresh tokens
+   - Auth server returns new tokens
+   - Proxy sets new `accessToken` cookie
+   - User continues seamlessly (never notices refresh)
+
+4. **User State in Navbar**:
+   - Navbar calls `getCurrentUser()` Server Action
+   - Server Action reads `accessToken` from httpOnly cookie
+   - Server Action calls auth server `/auth/verify`
+   - Returns user info or null
+   - Navbar displays username or login button
+
+### Single Refresh Interceptor Pattern
+
+**Best Practice:** All token refresh logic is centralized in ONE place - the Proxy middleware.
+
+- ✅ Proxy middleware: Handles ALL token refresh
+- ✅ Server Actions: Only validate tokens, never refresh
+- ✅ Clean separation of concerns
+- ✅ Follows industry best practices
 
 ### Why Two Different Secrets?
 
@@ -663,13 +744,16 @@ Signature: HMACSHA256(header+payload, SECRET) (Cryptographic signature)
 
 ✅ **Password Hashing**: bcrypt with 10 salt rounds  
 ✅ **httpOnly Cookies**: JavaScript cannot access tokens (XSS protection)  
-✅ **sameSite Cookies**: CSRF protection  
+✅ **sameSite Cookies**: 'none' in production with secure flag (cross-domain + CSRF protection)  
 ✅ **Secure Cookies**: HTTPS only in production  
-✅ **Token Rotation**: One-time use refresh tokens  
+✅ **Token Rotation**: New refresh token on each refresh  
 ✅ **Short-lived Access Tokens**: 15 minutes (minimize exposure)  
 ✅ **Separate Secrets**: Access and refresh tokens use different signing keys  
-✅ **Client-side Decoding Only**: No signature verification on client (Edge runtime)  
+✅ **Client-side Decoding Only**: No signature verification on client (Proxy middleware)  
 ✅ **Server-side Verification**: Full JWT signature verification on auth server  
+✅ **Server Actions**: Cookie management happens server-side (can set httpOnly)  
+✅ **Single Refresh Interceptor**: ONE place handles token refresh (Proxy middleware)  
+✅ **Optimistic UI**: Navbar prevents jitter during token expiration  
 
 ---
 
