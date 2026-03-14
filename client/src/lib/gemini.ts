@@ -349,10 +349,10 @@ export async function generateRoute(
           console.log('✅ Recovered JSON using regex + normalization');
         } catch {
           // If still invalid, try closing truncated JSON (missing trailing } ] } )
-          candidate = tryCloseTruncatedJson(candidate);
-          if (candidate) {
+          const repairedCandidate = tryCloseTruncatedJson(candidate);
+          if (repairedCandidate) {
             try {
-              routeData = JSON.parse(candidate);
+              routeData = JSON.parse(repairedCandidate);
               console.log('✅ Recovered JSON after closing truncated brackets');
             } catch {
               throw new Error('Failed to parse Gemini response as JSON. The AI may have returned malformed or truncated data.');
