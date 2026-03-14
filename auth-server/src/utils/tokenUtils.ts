@@ -230,17 +230,31 @@ export const extractTokenFromHeader = (authHeader?: string): string | null => {
  * DEFENSE EXPLANATION:
  * - httpOnly: true - Cookie cannot be accessed by JavaScript (prevents XSS attacks)
  * - secure: true in production - Only sent over HTTPS
- * - sameSite: 'strict' - Prevents CSRF attacks
+ * - sameSite: Controls cross-site cookie behavior
+ *   - 'strict': Only same-site requests (most secure, but won't work cross-domain)
+ *   - 'none': Allows cross-site (required for Vercel separate domains)
  * - maxAge: Cookie expiration time
  * 
  * WHY httpOnly?
  * - Even if XSS vulnerability exists, attacker cannot steal the refresh token
  * - This is a critical security measure
+ * 
+ * CROSS-DOMAIN COOKIES (Vercel):
+ * - In production, uses sameSite: 'none' to allow cross-domain cookies
+ * - This is needed when auth server and client are on different Vercel subdomains
+ * - secure: true is REQUIRED when sameSite='none' (HTTPS only)
+ * - In development, uses sameSite: 'strict' for better security (same domain)
  */
-export const getRefreshTokenCookieOptions = () => ({
+export const getRefreshTokenCookieOptions = (): {
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: 'strict' | 'lax' | 'none';
+  maxAge: number;
+  path: string;
+} => ({
   httpOnly: true, // CRITICAL: Prevents JavaScript access
   secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-  sameSite: 'strict' as const, // Prevents CSRF attacks
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // Cross-domain in prod
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
   path: '/', // Cookie sent with all requests (needed for silent refresh)
 });

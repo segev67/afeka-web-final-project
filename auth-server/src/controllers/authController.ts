@@ -438,12 +438,12 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
 export const logout = async (req: Request, res: Response): Promise<void> => {
   console.log('👋 [LOGOUT] User logging out...');
   
-  // Clear the refresh token cookie
+  // Clear the refresh token cookie (must match the settings used when setting it)
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/api/refresh',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+    path: '/',
   });
 
   console.log('✅ [LOGOUT] Refresh token cleared');

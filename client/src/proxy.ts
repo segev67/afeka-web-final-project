@@ -37,6 +37,45 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // ===========================================
+// UTILITY FUNCTIONS
+// ===========================================
+
+/**
+ * Convert JWT expiration string to seconds
+ * 
+ * DEFENSE EXPLANATION:
+ * - JWT libraries use strings like '15m', '7d', '1h' for expiration
+ * - Cookie maxAge needs seconds (number)
+ * - This function converts between the two formats
+ * - Keeps cookie expiration in sync with JWT expiration
+ * 
+ * @param expiresIn - JWT expiration string (e.g., '15m', '7d', '1h')
+ * @returns Number of seconds
+ */
+function parseJwtExpiration(expiresIn: string): number {
+  const match = expiresIn.match(/^(\d+)([smhd])$/);
+  if (!match) {
+    console.warn(`[Proxy] Invalid JWT expiration format: ${expiresIn}, defaulting to 15m`);
+    return 60 * 15; // Default to 15 minutes
+  }
+  
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  
+  switch (unit) {
+    case 's': return value;
+    case 'm': return value * 60;
+    case 'h': return value * 60 * 60;
+    case 'd': return value * 60 * 60 * 24;
+    default: return 60 * 15; // Default to 15 minutes
+  }
+}
+
+// Get cookie maxAge from environment variables (matches JWT expiration)
+const ACCESS_TOKEN_MAX_AGE = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '15m');
+const REFRESH_TOKEN_MAX_AGE = parseJwtExpiration(process.env.JWT_REFRESH_EXPIRES_IN || '7d');
+
+// ===========================================
 // CONFIGURATION
 // ===========================================
 
@@ -254,12 +293,17 @@ export async function proxy(request: NextRequest) {
           // - JWT has exp field: "I expire at 3:00 PM" (embedded in token)
           // - Cookie has maxAge: "Browser, delete me at 3:00 PM" (browser storage)
           // - If they don't match, you get weird bugs (cookie deleted but token valid, or vice versa)
+          // 
+          // CROSS-DOMAIN COOKIES (Vercel):
+          // - sameSite: 'none' allows cookies across different Vercel subdomains
+          // - secure: true is REQUIRED when sameSite='none'
+          // - This is needed because auth server and client are on different domains
           response.cookies.set('accessToken', refreshResult.accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             path: '/',
-            maxAge: 60 * 15, // 15 minutes (must match JWT_EXPIRES_IN=15m in auth server)
+            maxAge: ACCESS_TOKEN_MAX_AGE, // Dynamic: matches JWT_EXPIRES_IN from env
           });
           
           // Update refresh token if server rotated it
@@ -267,9 +311,9 @@ export async function proxy(request: NextRequest) {
             response.cookies.set('refreshToken', refreshResult.newRefreshToken, {
               httpOnly: true,
               secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
+              sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
               path: '/',
-              maxAge: 60 * 60 * 24 * 7, // 7 days
+              maxAge: REFRESH_TOKEN_MAX_AGE, // Dynamic: matches JWT_REFRESH_EXPIRES_IN from env
             });
           }
           
@@ -308,12 +352,13 @@ export async function proxy(request: NextRequest) {
           const response = NextResponse.next();
           
           // IMPORTANT: Cookie maxAge should match JWT expiration (JWT_EXPIRES_IN in auth server)
+          // CROSS-DOMAIN: sameSite='none' in production for Vercel cross-domain cookies
           response.cookies.set('accessToken', refreshResult.accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             path: '/',
-            maxAge: 60 * 15, // 15 minutes (must match JWT_EXPIRES_IN=15m in auth server)
+            maxAge: ACCESS_TOKEN_MAX_AGE, // Dynamic: matches JWT_EXPIRES_IN from env
           });
           
           // Update refresh token if server rotated it
@@ -321,9 +366,9 @@ export async function proxy(request: NextRequest) {
             response.cookies.set('refreshToken', refreshResult.newRefreshToken, {
               httpOnly: true,
               secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
+              sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
               path: '/',
-              maxAge: 60 * 60 * 24 * 7, // 7 days
+              maxAge: REFRESH_TOKEN_MAX_AGE, // Dynamic: matches JWT_REFRESH_EXPIRES_IN from env
             });
           }
           
