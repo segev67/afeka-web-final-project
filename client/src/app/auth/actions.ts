@@ -74,7 +74,8 @@ const ACCESS_TOKEN_MAX_AGE = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '1
  * Reads the httpOnly accessToken cookie and verifies it with the auth server.
  * This is how components can check if a user is logged in.
  * 
- * IMPORTANT: This bypasses proxy middleware, so we need to handle token expiration here
+ * IMPORTANT: This does NOT refresh tokens - that's handled by proxy middleware
+ * Following best practice: ONE refresh interceptor (the proxy)
  * 
  * @returns User object if authenticated, null otherwise
  */
@@ -88,6 +89,7 @@ export async function getCurrentUser(): Promise<User | null> {
     }
 
     // Verify token with auth server
+    // If expired, proxy middleware will handle refresh on next navigation
     const response = await fetch(`${AUTH_URL}/auth/verify`, {
       method: 'GET',
       headers: {
@@ -95,89 +97,21 @@ export async function getCurrentUser(): Promise<User | null> {
       },
     });
 
-    // If token is valid, return user
-    if (response.ok) {
-      const data = await response.json();
-
-      if (data.success && data.data?.user) {
-        const user = data.data.user;
-        return {
-          id: user.userId || user.id,
-          username: user.username,
-          email: user.email,
-        };
-      }
+    if (!response.ok) {
+      // Token expired or invalid
+      // Proxy middleware will refresh it when user navigates
+      return null;
     }
 
-    // If token is expired (401), try to refresh silently
-    if (response.status === 401) {
-      const refreshToken = cookieStore.get('refreshToken')?.value;
-      
-      if (refreshToken) {
-        // Try to refresh the token
-        const refreshResponse = await fetch(`${AUTH_URL}/auth/refresh`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cookie': `refreshToken=${refreshToken}`,
-          },
-          credentials: 'include',
-        });
+    const data = await response.json();
 
-        if (refreshResponse.ok) {
-          const refreshData = await refreshResponse.json();
-          const newAccessToken = refreshData.data?.accessToken || refreshData.accessToken;
-
-          if (newAccessToken) {
-            // Set the new access token
-            cookieStore.set('accessToken', newAccessToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-              path: '/',
-              maxAge: parseJwtExpiration(process.env.JWT_EXPIRES_IN || '15m'),
-            });
-
-            // Forward new refresh token if provided
-            const setCookieHeader = refreshResponse.headers.get('set-cookie');
-            if (setCookieHeader) {
-              const refreshTokenMatch = setCookieHeader.match(/refreshToken=([^;]+)/);
-              if (refreshTokenMatch) {
-                const newRefreshToken = refreshTokenMatch[1];
-                const refreshMaxAge = parseJwtExpiration(process.env.JWT_REFRESH_EXPIRES_IN || '7d');
-                
-                cookieStore.set('refreshToken', newRefreshToken, {
-                  httpOnly: true,
-                  secure: process.env.NODE_ENV === 'production',
-                  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                  path: '/',
-                  maxAge: refreshMaxAge,
-                });
-              }
-            }
-
-            // Now verify with the new token
-            const verifyResponse = await fetch(`${AUTH_URL}/auth/verify`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${newAccessToken}`,
-              },
-            });
-
-            if (verifyResponse.ok) {
-              const verifyData = await verifyResponse.json();
-              if (verifyData.success && verifyData.data?.user) {
-                const user = verifyData.data.user;
-                return {
-                  id: user.userId || user.id,
-                  username: user.username,
-                  email: user.email,
-                };
-              }
-            }
-          }
-        }
-      }
+    if (data.success && data.data?.user) {
+      const user = data.data.user;
+      return {
+        id: user.userId || user.id,
+        username: user.username,
+        email: user.email,
+      };
     }
 
     return null;
