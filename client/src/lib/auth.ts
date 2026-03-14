@@ -60,19 +60,24 @@ const ACCESS_TOKEN_COOKIE = 'accessToken';
  * Store Access Token
  * 
  * DEFENSE EXPLANATION:
- * - We use js-cookie to store the access token
- * - This is accessible by JavaScript (not httpOnly)
- * - For better security, keep token in memory/React state
- * - We use cookies here for persistence across page refreshes
+ * - In production, the proxy middleware handles cookie management
+ * - This function is kept for backwards compatibility but doesn't set cookies
+ * - Access tokens are managed server-side (httpOnly cookies in production)
+ * - Only used in development for client-side token storage
  * 
  * @param token - JWT access token
  */
 export const setAccessToken = (token: string): void => {
-  Cookies.set(ACCESS_TOKEN_COOKIE, token, {
-    expires: 1 / 96, // 15 minutes (1 day / 96)
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-  });
+  // In production, proxy middleware handles cookies (httpOnly, sameSite: 'none')
+  // Don't set cookies client-side to avoid conflicts
+  if (process.env.NODE_ENV !== 'production') {
+    Cookies.set(ACCESS_TOKEN_COOKIE, token, {
+      expires: 1 / 96, // 15 minutes (1 day / 96)
+      sameSite: 'strict',
+      secure: false,
+    });
+  }
+  // In production: Do nothing - proxy middleware handles it
 };
 
 /**
