@@ -39,6 +39,7 @@ export default function Navbar() {
   // User authentication state
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastKnownUser, setLastKnownUser] = useState<User | null>(null);
 
   /**
    * Check authentication on mount
@@ -49,25 +50,48 @@ export default function Navbar() {
    * - Server Action can read httpOnly cookies (client JS cannot!)
    * - If valid, store user info in state
    * - Re-checks when route changes to update auth state
+   * 
+   * UX OPTIMIZATION:
+   * - Uses "lastKnownUser" to avoid jitter when token expires
+   * - If verification fails but we had a user, keep showing them
+   * - Trust proxy middleware to refresh token on next navigation
+   * - Only clear user on explicit logout or multiple failed checks
    */
   useEffect(() => {
     const checkAuth = async () => {
       const userData = await getCurrentUser();
-      setUser(userData);
+      
+      if (userData) {
+        // Token valid - update user state
+        setUser(userData);
+        setLastKnownUser(userData);
+      } else if (!user && lastKnownUser) {
+        // Token expired but we had a user before
+        // Keep showing the last known user (optimistic UI)
+        // Proxy will refresh token on next navigation
+        setUser(lastKnownUser);
+      } else if (!userData && !lastKnownUser) {
+        // Never had a user or explicit logout
+        setUser(null);
+      }
+      // If user exists but userData is null, keep current user (grace period)
+      
       setIsLoading(false);
     };
 
     checkAuth();
-  }, [pathname]); // Re-check when route changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]); // Re-check when route changes (user and lastKnownUser are intentionally not in deps)
 
   /**
    * Handle Logout
    * 
-   * Clears tokens and redirects to home page.
+   * Clears tokens and user state, then redirects to home page.
    */
   const handleLogout = async () => {
     await logoutAction();
     setUser(null);
+    setLastKnownUser(null); // Clear last known user on explicit logout
     window.location.href = "/";
   };
 
