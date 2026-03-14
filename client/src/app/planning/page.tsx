@@ -24,7 +24,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { TripType, RoutePlan } from '@/types';
 import { generateRoutePlan, saveRoute } from './actions';
-import { getAccessToken, verifyToken } from '@/lib/auth';
+import { getCurrentUser } from '@/app/auth/actions';
 import { getImageAltText } from '@/lib/images';
 
 // Dynamic import for RouteMap (no SSR)
@@ -81,8 +81,8 @@ export default function PlanningPage() {
     setIsGenerating(true);
 
     try {
-      // Get authenticated user
-      const user = await verifyToken();
+      // Get authenticated user (Server Action reads httpOnly cookie)
+      const user = await getCurrentUser();
       
       if (!user) {
         setError('Please log in to generate routes');

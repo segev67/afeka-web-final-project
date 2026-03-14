@@ -23,7 +23,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { logout, getAccessToken, verifyToken, User } from "@/lib/auth";
+import { getCurrentUser, logoutAction, type User } from "@/app/auth/actions";
 
 // ===========================================
 // NAVIGATION COMPONENT
@@ -45,18 +45,14 @@ export default function Navbar() {
    * 
    * DEFENSE EXPLANATION:
    * - useEffect runs after component mounts (client-side)
-   * - We verify token with the auth server
+   * - We call Server Action to check httpOnly cookie
+   * - Server Action can read httpOnly cookies (client JS cannot!)
    * - If valid, store user info in state
    */
   useEffect(() => {
     const checkAuth = async () => {
-      const token = getAccessToken();
-      
-      if (token) {
-        const userData = await verifyToken();
-        setUser(userData);
-      }
-      
+      const userData = await getCurrentUser();
+      setUser(userData);
       setIsLoading(false);
     };
 
@@ -69,7 +65,7 @@ export default function Navbar() {
    * Clears tokens and redirects to home page.
    */
   const handleLogout = async () => {
-    await logout();
+    await logoutAction();
     setUser(null);
     window.location.href = "/";
   };

@@ -33,6 +33,12 @@ interface AuthResponse {
   };
 }
 
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+}
+
 // ===========================================
 // CONSTANTS
 // ===========================================
@@ -61,6 +67,53 @@ const ACCESS_TOKEN_MAX_AGE = parseJwtExpiration(process.env.JWT_EXPIRES_IN || '1
 // ===========================================
 // AUTH ACTIONS
 // ===========================================
+
+/**
+ * Get Current User (Server Action)
+ * 
+ * Reads the httpOnly accessToken cookie and verifies it with the auth server.
+ * This is how components can check if a user is logged in.
+ * 
+ * @returns User object if authenticated, null otherwise
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('accessToken')?.value;
+
+    if (!accessToken) {
+      return null;
+    }
+
+    // Verify token with auth server
+    const response = await fetch(`${AUTH_URL}/auth/verify`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (data.success && data.data?.user) {
+      const user = data.data.user;
+      return {
+        id: user.userId || user.id,
+        username: user.username,
+        email: user.email,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[getCurrentUser] Error:', error);
+    return null;
+  }
+}
 
 /**
  * Register User (Server Action)
