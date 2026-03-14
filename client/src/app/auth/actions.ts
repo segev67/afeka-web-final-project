@@ -142,6 +142,8 @@ export async function registerAction(
     // Set accessToken in httpOnly cookie (more secure)
     if (data.success && data.data?.accessToken) {
       const cookieStore = await cookies();
+      
+      // Set accessToken cookie
       cookieStore.set('accessToken', data.data.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -150,8 +152,27 @@ export async function registerAction(
         maxAge: ACCESS_TOKEN_MAX_AGE,
       });
 
-      // Check if auth server set refreshToken cookie and forward it
-      // (The auth server should have already set it via Set-Cookie header)
+      // CRITICAL: Forward refreshToken cookie from auth server response
+      // The auth server sets it via Set-Cookie header, we need to forward it to browser
+      const setCookieHeader = response.headers.get('set-cookie');
+      if (setCookieHeader) {
+        // Parse the refreshToken from Set-Cookie header
+        const refreshTokenMatch = setCookieHeader.match(/refreshToken=([^;]+)/);
+        if (refreshTokenMatch) {
+          const refreshToken = refreshTokenMatch[1];
+          const refreshMaxAge = parseJwtExpiration(process.env.JWT_REFRESH_EXPIRES_IN || '7d');
+          
+          cookieStore.set('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            path: '/',
+            maxAge: refreshMaxAge,
+          });
+          
+          console.log('[registerAction] ✅ Forwarded refreshToken cookie to browser');
+        }
+      }
     }
 
     return data;
@@ -189,6 +210,8 @@ export async function loginAction(
     // Set accessToken in httpOnly cookie (more secure)
     if (data.success && data.data?.accessToken) {
       const cookieStore = await cookies();
+      
+      // Set accessToken cookie
       cookieStore.set('accessToken', data.data.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -196,6 +219,32 @@ export async function loginAction(
         path: '/',
         maxAge: ACCESS_TOKEN_MAX_AGE,
       });
+
+      // CRITICAL: Forward refreshToken cookie from auth server response
+      // The auth server sets it via Set-Cookie header, we need to forward it to browser
+      const setCookieHeader = response.headers.get('set-cookie');
+      if (setCookieHeader) {
+        // Parse the refreshToken from Set-Cookie header
+        const refreshTokenMatch = setCookieHeader.match(/refreshToken=([^;]+)/);
+        if (refreshTokenMatch) {
+          const refreshToken = refreshTokenMatch[1];
+          const refreshMaxAge = parseJwtExpiration(process.env.JWT_REFRESH_EXPIRES_IN || '7d');
+          
+          cookieStore.set('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            path: '/',
+            maxAge: refreshMaxAge,
+          });
+          
+          console.log('[loginAction] ✅ Forwarded refreshToken cookie to browser');
+        } else {
+          console.warn('[loginAction] ⚠️ No refreshToken found in Set-Cookie header');
+        }
+      } else {
+        console.warn('[loginAction] ⚠️ No Set-Cookie header from auth server');
+      }
     }
 
     return data;
