@@ -232,6 +232,7 @@ function tryCloseTruncatedJson(str: string): string | null {
  * Sanitize route data after parsing (especially after truncation recovery).
  * - Drops routes with fewer than 2 segments so validation passes.
  * - Renumbers days to 1, 2, 3...
+ * - Fills missing totalDistanceKm for each route from sum of segment distances.
  * - Fills missing totalDistanceKm from sum of per-route distances.
  * - Adds defaults for missing difficulty/recommendations.
  */
@@ -246,13 +247,38 @@ function sanitizeRecoveredRouteData(data: LLMRouteResponse): LLMRouteResponse {
   if (routes.length === 0) {
     return data;
   }
-  const renumbered = routes.map((r, i) => ({ ...r, day: i + 1 }));
+  
+  // Ensure each route has totalDistanceKm (calculate from segments if missing)
+  const routesWithDistance = routes.map((r, i) => {
+    let routeDistance = r.totalDistanceKm;
+    
+    // If route is missing totalDistanceKm, calculate it from segments
+    if (routeDistance === undefined || routeDistance === null || routeDistance === 0) {
+      routeDistance = (r.segments || []).reduce(
+        (sum, seg) => sum + (Number(seg.distanceKm) || 0), 
+        0
+      );
+      
+      // If still 0 (segments also missing distance), use a default based on segment count
+      if (routeDistance === 0 && r.segments && r.segments.length > 0) {
+        routeDistance = r.segments.length * 5; // Default ~5km per segment
+      }
+    }
+    
+    return {
+      ...r,
+      day: i + 1,
+      totalDistanceKm: Math.round(routeDistance * 10) / 10
+    };
+  });
+  
   const totalDistanceKm =
     data.totalDistanceKm ??
-    renumbered.reduce((sum, r) => sum + (Number(r.totalDistanceKm) || 0), 0);
+    routesWithDistance.reduce((sum, r) => sum + (Number(r.totalDistanceKm) || 0), 0);
+  
   return {
     ...data,
-    routes: renumbered,
+    routes: routesWithDistance,
     totalDistanceKm: Math.round(totalDistanceKm * 10) / 10,
     difficulty: data.difficulty || 'moderate',
     recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
