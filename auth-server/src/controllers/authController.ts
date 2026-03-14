@@ -367,7 +367,9 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
     // Step 5: Return new access token
     const duration = Date.now() - startTime;
-    console.log(`✅ [REFRESH] Silent refresh successful for ${user.username} (${duration}ms)`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ [REFRESH] Silent refresh successful for ${user.username} (${duration}ms)`);
+    }
     
     res.status(200).json({
       success: true,
@@ -410,7 +412,9 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 export const verifyToken = async (req: Request, res: Response): Promise<void> => {
   // If we reach here, the protect middleware has already verified the token
   // req.user contains the decoded token data
-  console.log(`✅ [VERIFY] Token verified for user: ${req.user?.username}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`✅ [VERIFY] Token verified for user: ${req.user?.username}`);
+  }
   
   res.status(200).json({
     success: true,

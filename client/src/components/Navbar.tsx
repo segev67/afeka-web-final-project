@@ -48,6 +48,7 @@ export default function Navbar() {
    * - We call Server Action to check httpOnly cookie
    * - Server Action can read httpOnly cookies (client JS cannot!)
    * - If valid, store user info in state
+   * - Re-checks when route changes to update auth state
    */
   useEffect(() => {
     const checkAuth = async () => {
